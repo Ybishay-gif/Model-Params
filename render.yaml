@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: model-config-editor
+    env: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: APP_PASSWORD
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: SPREADSHEET_ID
+        sync: false
+      - key: DATA_SHEET_NAME
+        value: LM model configuration
+      - key: LEGEND_SHEET_NAME
+        value: legend
+      - key: LOG_SHEET_NAME
+        value: ChangeLog
+      - key: GOOGLE_SERVICE_ACCOUNT_JSON
+        sync: false

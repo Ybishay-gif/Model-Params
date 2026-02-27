@@ -1,0 +1,113 @@
+body {
+  background: #f4f7f9;
+  font-family: 'Segoe UI', sans-serif;
+  padding-bottom: 50px;
+}
+
+.card {
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  margin-bottom: 1.5rem;
+}
+
+.card-header {
+  background: #fff;
+  font-weight: 700;
+  border-bottom: 1px solid #eee;
+}
+
+#auth-screen {
+  position: fixed;
+  inset: 0;
+  background: #fff;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loader-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.8);
+  z-index: 3000;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.slider-wrapper {
+  padding: 80px 40px 60px 40px;
+}
+
+.handle-label {
+  position: absolute;
+  top: -45px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-weight: 800;
+  color: #555;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  text-align: center;
+}
+
+#slider-roe .noUi-handle:nth-child(1) { background: #8b0000 !important; }
+#slider-roe .noUi-handle:nth-child(2) { background: #ffcccb !important; }
+#slider-roe .noUi-handle:nth-child(3) { background: #ffff00 !important; }
+#slider-roe .noUi-handle:nth-child(4) { background: #90ee90 !important; }
+#slider-roe .noUi-handle:nth-child(5) { background: #008000 !important; }
+#slider-roe .noUi-handle:nth-child(6) { background: #006400 !important; }
+#slider-roe .noUi-connect:nth-child(1) { background: #f8d7da !important; }
+#slider-roe .noUi-connect:nth-child(2) { background: #f5c2c7 !important; }
+#slider-roe .noUi-connect:nth-child(3) { background: #fff3cd !important; }
+#slider-roe .noUi-connect:nth-child(4) { background: #d1e7dd !important; }
+#slider-roe .noUi-connect:nth-child(5) { background: #badbcc !important; }
+#slider-roe .noUi-connect:nth-child(6) { background: #a3cfbb !important; }
+#slider-roe .noUi-connect:nth-child(7) { background: #75b798 !important; }
+
+#slider-perf .noUi-handle:nth-child(1) { background: #8b0000 !important; }
+#slider-perf .noUi-handle:nth-child(2) { background: #ff0000 !important; }
+#slider-perf .noUi-handle:nth-child(3) { background: #90ee90 !important; }
+#slider-perf .noUi-handle:nth-child(4) { background: #008000 !important; }
+#slider-perf .noUi-handle:nth-child(5) { background: #006400 !important; }
+#slider-perf .noUi-connect:nth-child(1) { background: #f8d7da !important; }
+#slider-perf .noUi-connect:nth-child(2) { background: #f5c2c7 !important; }
+#slider-perf .noUi-connect:nth-child(3) { background: #d1e7dd !important; }
+#slider-perf .noUi-connect:nth-child(4) { background: #badbcc !important; }
+#slider-perf .noUi-connect:nth-child(5) { background: #a3cfbb !important; }
+#slider-perf .noUi-connect:nth-child(6) { background: #75b798 !important; }
+
+#slider-wr .noUi-handle:nth-child(1) { background: #add8e0 !important; }
+#slider-wr .noUi-handle:nth-child(2) { background: #4682b4 !important; }
+#slider-wr .noUi-handle:nth-child(3) { background: #0000ff !important; }
+#slider-wr .noUi-handle:nth-child(4) { background: #008000 !important; }
+#slider-wr .noUi-handle:nth-child(5) { background: #006400 !important; }
+#slider-wr .noUi-connect:nth-child(1) { background: #e7f1ff !important; }
+#slider-wr .noUi-connect:nth-child(2) { background: #cfe2ff !important; }
+#slider-wr .noUi-connect:nth-child(3) { background: #b6d4fe !important; }
+#slider-wr .noUi-connect:nth-child(4) { background: #d1e7dd !important; }
+#slider-wr .noUi-connect:nth-child(5) { background: #badbcc !important; }
+#slider-wr .noUi-connect:nth-child(6) { background: #a3cfbb !important; }
+
+#slider-quote .noUi-handle:nth-child(1) { background: #8b0000 !important; }
+#slider-quote .noUi-handle:nth-child(2) { background: #ff0000 !important; }
+#slider-quote .noUi-handle:nth-child(3) { background: #ffff00 !important; }
+#slider-quote .noUi-handle:nth-child(4) { background: #008000 !important; }
+#slider-quote .noUi-handle:nth-child(5) { background: #006400 !important; }
+#slider-quote .noUi-connect:nth-child(1) { background: #f8d7da !important; }
+#slider-quote .noUi-connect:nth-child(2) { background: #f5c2c7 !important; }
+#slider-quote .noUi-connect:nth-child(3) { background: #fff3cd !important; }
+#slider-quote .noUi-connect:nth-child(4) { background: #d1e7dd !important; }
+#slider-quote .noUi-connect:nth-child(5) { background: #badbcc !important; }
+#slider-quote .noUi-connect:nth-child(6) { background: #a3cfbb !important; }
+
+.noUi-tooltip {
+  font-weight: bold;
+  font-size: 11px;
+  padding: 2px 6px;
+}
