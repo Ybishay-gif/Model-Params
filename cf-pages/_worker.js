@@ -31,6 +31,12 @@ export default {
         return withCors(await handleUpdate(request, env, auth.user));
       }
 
+      if (url.pathname === '/api/changelog' && request.method === 'GET') {
+        const auth = await verifyAuth(request, env);
+        if (!auth.ok) return withCors(json({ error: 'Unauthorized' }, 401));
+        return withCors(await handleChangeLog(url, env));
+      }
+
       return env.ASSETS.fetch(request);
     } catch (err) {
       return withCors(json({ error: err.message || 'Internal error' }, 500));
@@ -223,6 +229,70 @@ async function handleUpdate(request, env, user) {
   return json({ rowsUpdated });
 }
 
+async function handleChangeLog(url, env) {
+  const logSheet = env.LOG_SHEET_NAME || 'ChangeLog';
+  const data = await getSheetValues(env, logSheet).catch(() => []);
+  if (!data.length) {
+    return json({ rows: [], options: { users: [], tactics: [], segments: [], parameters: [] } });
+  }
+
+  const headers = data[0].map(normalizeHeader);
+  const idxTimestamp = headers.indexOf('timestamp');
+  const idxUser = headers.indexOf('user');
+  const idxTactic = headers.indexOf('tactic');
+  const idxVertical = headers.indexOf('vertical');
+  const idxSegment = headers.indexOf('segment');
+  const idxParameter = headers.indexOf('parameter');
+  const idxOldValue = headers.indexOf('old value');
+  const idxNewValue = headers.indexOf('new value');
+
+  const rows = data.slice(1).map((r) => ({
+    timestamp: r[idxTimestamp] || '',
+    user: r[idxUser] || '',
+    tactic: r[idxTactic] || '',
+    vertical: r[idxVertical] || '',
+    segment: r[idxSegment] || '',
+    parameter: r[idxParameter] || '',
+    oldValue: r[idxOldValue] ?? '',
+    newValue: r[idxNewValue] ?? ''
+  }));
+
+  const options = {
+    users: uniqueSorted(rows.map((r) => String(r.user || '').trim()).filter(Boolean)),
+    tactics: uniqueSorted(rows.map((r) => String(r.tactic || '').trim()).filter(Boolean)),
+    segments: uniqueSorted(rows.map((r) => String(r.segment || '').trim()).filter(Boolean)),
+    parameters: uniqueSorted(rows.map((r) => String(r.parameter || '').trim()).filter(Boolean))
+  };
+
+  const dateFrom = url.searchParams.get('date_from');
+  const dateTo = url.searchParams.get('date_to');
+  const user = url.searchParams.get('user');
+  const tactic = url.searchParams.get('tactic');
+  const segment = url.searchParams.get('segment');
+  const parameter = url.searchParams.get('parameter');
+
+  const fromMs = dateFrom ? Date.parse(`${dateFrom}T00:00:00Z`) : null;
+  const toMs = dateTo ? Date.parse(`${dateTo}T23:59:59.999Z`) : null;
+
+  const filtered = rows.filter((row) => {
+    if (user && String(row.user) !== user) return false;
+    if (tactic && String(row.tactic) !== tactic) return false;
+    if (segment && String(row.segment) !== segment) return false;
+    if (parameter && String(row.parameter) !== parameter) return false;
+
+    if (fromMs != null || toMs != null) {
+      const ts = Date.parse(String(row.timestamp));
+      if (Number.isNaN(ts)) return false;
+      if (fromMs != null && ts < fromMs) return false;
+      if (toMs != null && ts > toMs) return false;
+    }
+    return true;
+  });
+
+  filtered.sort((a, b) => Date.parse(String(b.timestamp)) - Date.parse(String(a.timestamp)));
+  return json({ rows: filtered, options });
+}
+
 function normalizeHeader(v) {
   return String(v || '').trim().toLowerCase();
 }
@@ -235,6 +305,10 @@ function toNumberOrNull(value) {
 
 function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function uniqueSorted(values) {
+  return [...new Set(values)].sort((a, b) => String(a).localeCompare(String(b)));
 }
 
 function json(obj, status = 200) {

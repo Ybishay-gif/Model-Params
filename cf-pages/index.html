@@ -42,6 +42,14 @@
         <div class="col-lg-3">
           <div class="card p-4 sticky-top" style="top: 20px">
             <h5 class="fw-bold mb-4">Filters</h5>
+            <div class="mb-3 d-flex gap-2">
+              <button class="btn btn-outline-primary flex-fill" id="view-editor-btn">
+                <i class="bi bi-sliders"></i> Editor
+              </button>
+              <button class="btn btn-outline-secondary flex-fill" id="view-log-btn">
+                <i class="bi bi-clock-history"></i> Change Log
+              </button>
+            </div>
             <div class="mb-3"><label class="small fw-bold">Tactic</label><select id="tactic" class="form-select"></select></div>
             <div class="mb-3"><label class="small fw-bold">Vertical</label><select id="vertical" class="form-select"></select></div>
             <div class="mb-4"><label class="small fw-bold text-primary">Segment</label><select id="segment" class="form-select border-primary"><option value="ALL">Apply to ALL (Load MCH)</option></select></div>
@@ -50,12 +58,51 @@
         </div>
 
         <div class="col-lg-9">
-          <div class="card"><div class="card-header p-3">ROE Ranges (-50% to 50%)</div><div class="card-body slider-wrapper"><div id="slider-roe"></div></div></div>
-          <div class="card"><div class="card-header p-3">Performance (0% to 300%)</div><div class="card-body slider-wrapper"><div id="slider-perf"></div></div></div>
-          <div class="card"><div class="card-header p-3">Win Rate (0% to 100%)</div><div class="card-body slider-wrapper"><div id="slider-wr"></div></div></div>
-          <div class="card"><div class="card-header p-3">Quote Rate (0% to 100%)</div><div class="card-body slider-wrapper"><div id="slider-quote"></div></div></div>
-          <div class="card"><div class="card-header p-3">Date Ranges</div><div class="card-body row" id="sec-dates"></div></div>
-          <div class="card"><div class="card-header p-3">Cost Configuration ($ Values)</div><div class="card-body row" id="sec-cost"></div></div>
+          <div id="editor-view">
+            <div class="card"><div class="card-header p-3">ROE Ranges (-50% to 50%)</div><div class="card-body slider-wrapper"><div id="slider-roe"></div></div></div>
+            <div class="card"><div class="card-header p-3">Performance (0% to 300%)</div><div class="card-body slider-wrapper"><div id="slider-perf"></div></div></div>
+            <div class="card"><div class="card-header p-3">Win Rate (0% to 100%)</div><div class="card-body slider-wrapper"><div id="slider-wr"></div></div></div>
+            <div class="card"><div class="card-header p-3">Quote Rate (0% to 100%)</div><div class="card-body slider-wrapper"><div id="slider-quote"></div></div></div>
+            <div class="card"><div class="card-header p-3">Date Ranges</div><div class="card-body row" id="sec-dates"></div></div>
+            <div class="card"><div class="card-header p-3">Cost Configuration ($ Values)</div><div class="card-body row" id="sec-cost"></div></div>
+          </div>
+
+          <div id="log-view" style="display: none;">
+            <div class="card">
+              <div class="card-header p-3">Change Log</div>
+              <div class="card-body">
+                <div class="row g-2 mb-3">
+                  <div class="col-md-2"><input type="date" id="log-date-from" class="form-control" /></div>
+                  <div class="col-md-2"><input type="date" id="log-date-to" class="form-control" /></div>
+                  <div class="col-md-2"><select id="log-user" class="form-select"><option value="">All Users</option></select></div>
+                  <div class="col-md-2"><select id="log-tactic" class="form-select"><option value="">All Tactics</option></select></div>
+                  <div class="col-md-2"><select id="log-segment" class="form-select"><option value="">All Segments</option></select></div>
+                  <div class="col-md-2"><select id="log-parameter" class="form-select"><option value="">All Parameters</option></select></div>
+                </div>
+                <div class="d-flex gap-2 mb-3">
+                  <button class="btn btn-primary" id="log-apply-btn">Apply</button>
+                  <button class="btn btn-outline-secondary" id="log-clear-btn">Clear</button>
+                </div>
+                <div class="table-responsive">
+                  <table class="table table-sm table-striped" id="log-table">
+                    <thead>
+                      <tr>
+                        <th>Timestamp</th>
+                        <th>User</th>
+                        <th>Tactic</th>
+                        <th>Vertical</th>
+                        <th>Segment</th>
+                        <th>Parameter</th>
+                        <th>Old Value</th>
+                        <th>New Value</th>
+                      </tr>
+                    </thead>
+                    <tbody id="log-tbody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -14,10 +14,23 @@ let sliderInstances = {};
 let legend = {};
 let successModal;
 let token = '';
+let logLoaded = false;
 
 document.getElementById('login-btn').addEventListener('click', verify);
 document.getElementById('save-btn').addEventListener('click', executeSave);
 ['tactic', 'vertical', 'segment'].forEach((id) => document.getElementById(id).addEventListener('change', fetchCurrentValues));
+document.getElementById('view-editor-btn').addEventListener('click', () => setView('editor'));
+document.getElementById('view-log-btn').addEventListener('click', async () => {
+  setView('log');
+  if (!logLoaded) await loadChangeLog();
+});
+document.getElementById('log-apply-btn').addEventListener('click', loadChangeLog);
+document.getElementById('log-clear-btn').addEventListener('click', async () => {
+  ['log-date-from', 'log-date-to', 'log-user', 'log-tactic', 'log-segment', 'log-parameter'].forEach((id) => {
+    document.getElementById(id).value = '';
+  });
+  await loadChangeLog();
+});
 
 async function api(path, options = {}) {
   const response = await fetch(`${APP_CONFIG.API_BASE_URL}${path}`, {
@@ -57,6 +70,16 @@ function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+function setView(mode) {
+  const isLog = mode === 'log';
+  document.getElementById('editor-view').style.display = isLog ? 'none' : 'block';
+  document.getElementById('log-view').style.display = isLog ? 'block' : 'none';
+  document.getElementById('view-editor-btn').classList.toggle('btn-primary', !isLog);
+  document.getElementById('view-editor-btn').classList.toggle('btn-outline-primary', isLog);
+  document.getElementById('view-log-btn').classList.toggle('btn-secondary', isLog);
+  document.getElementById('view-log-btn').classList.toggle('btn-outline-secondary', !isLog);
+}
+
 async function init() {
   toggleLoader(true, 'Synchronizing...');
   successModal = new bootstrap.Modal(document.getElementById('successModal'));
@@ -94,6 +117,7 @@ async function init() {
     fillSelect('segment', data.filters?.segments || [], true);
     renderSections();
     await fetchCurrentValues();
+    setView('editor');
   } catch (error) {
     if (String(error.message).includes('Unauthorized')) {
       token = '';
@@ -126,6 +150,75 @@ function fillSelect(id, list, isSeg) {
     html += `<option value="${v}">${v}</option>`;
   });
   s.innerHTML = html;
+}
+
+async function loadChangeLog() {
+  toggleLoader(true, 'Loading change log...');
+  try {
+    const params = new URLSearchParams();
+    const dateFrom = document.getElementById('log-date-from').value;
+    const dateTo = document.getElementById('log-date-to').value;
+    const user = document.getElementById('log-user').value;
+    const tactic = document.getElementById('log-tactic').value;
+    const segment = document.getElementById('log-segment').value;
+    const parameter = document.getElementById('log-parameter').value;
+
+    if (dateFrom) params.set('date_from', dateFrom);
+    if (dateTo) params.set('date_to', dateTo);
+    if (user) params.set('user', user);
+    if (tactic) params.set('tactic', tactic);
+    if (segment) params.set('segment', segment);
+    if (parameter) params.set('parameter', parameter);
+
+    const res = await api(`/api/changelog?${params.toString()}`);
+    renderLogFilterOptions('log-user', res.options?.users || []);
+    renderLogFilterOptions('log-tactic', res.options?.tactics || []);
+    renderLogFilterOptions('log-segment', res.options?.segments || []);
+    renderLogFilterOptions('log-parameter', res.options?.parameters || []);
+    renderLogRows(res.rows || []);
+    logLoaded = true;
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    toggleLoader(false);
+  }
+}
+
+function renderLogFilterOptions(id, values) {
+  const select = document.getElementById(id);
+  const current = select.value;
+  const first = select.options[0];
+  const label = first ? first.text : 'All';
+  let html = `<option value="">${label}</option>`;
+  values.forEach((v) => {
+    const safe = String(v);
+    html += `<option value="${safe}">${safe}</option>`;
+  });
+  select.innerHTML = html;
+  if (values.includes(current)) select.value = current;
+}
+
+function renderLogRows(rows) {
+  const tbody = document.getElementById('log-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No changes found</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows
+    .map((r) => `
+      <tr>
+        <td>${r.timestamp || ''}</td>
+        <td>${r.user || ''}</td>
+        <td>${r.tactic || ''}</td>
+        <td>${r.vertical || ''}</td>
+        <td>${r.segment || ''}</td>
+        <td>${r.parameter || ''}</td>
+        <td>${r.oldValue ?? ''}</td>
+        <td>${r.newValue ?? ''}</td>
+      </tr>
+    `)
+    .join('');
 }
 
 async function fetchCurrentValues() {
@@ -185,6 +278,7 @@ async function executeSave() {
 
     document.getElementById('modal-message').innerText = `${res.rowsUpdated} row(s) updated successfully!`;
     successModal.show();
+    logLoaded = false;
   } catch (error) {
     alert(error.message);
   } finally {
