@@ -1,53 +1,51 @@
-# Model Config Editor (Google Sheets, no Apps Script)
+# Model Config Editor
 
-This app replicates your Apps Script behavior as a standalone web app:
-- Password-gated UI
-- Filter by `tactic`, `vertical`, `segment`
-- Segment `ALL` loads `MCH`
-- Update one segment or all segments
-- Write detailed change logs to `ChangeLog`
+You now have two deployment modes:
 
-## Local run
+1. `server.js` app (Node backend)
+2. `docs/` app (static GitHub Pages, no Render account needed)
 
-1. Copy env file:
-```bash
-cp .env.example .env
-```
+## Deploy without Render (GitHub Pages)
 
-2. Fill `.env` values.
+This is the easiest path with your current setup.
 
-3. Run:
-```bash
-npm install
-npm start
-```
+### 1) Configure Google Cloud
 
-4. Open `http://localhost:3000`.
-
-## Deploy to web (Render)
-
-This repo includes `render.yaml` for quick deployment.
-
-1. Push this folder to GitHub.
-2. In Render: **New +** -> **Blueprint** -> select your repo.
-3. Fill required env vars in Render:
-- `APP_PASSWORD`
-- `SPREADSHEET_ID`
-- `GOOGLE_SERVICE_ACCOUNT_JSON`
-
-### GOOGLE_SERVICE_ACCOUNT_JSON value
-Use the full JSON credentials from your service-account key file as a single-line string, or base64-encode the JSON and paste that.
-
-4. Deploy.
-
-## Google setup (required)
-
-1. Create a Google Cloud service account.
+1. In Google Cloud Console, create/select a project.
 2. Enable **Google Sheets API**.
-3. Generate a service-account JSON key.
-4. Share your spreadsheet with the service account email as **Editor**.
+3. Create an **OAuth 2.0 Client ID** for **Web application**.
+4. Add Authorized JavaScript origins:
+- `https://ybishay-gif.github.io`
+- `http://localhost:8000` (optional for local testing)
+5. Create an API key.
+
+### 2) Configure app
+
+Edit `docs/config.js`:
+- `APP_PASSWORD`
+- `API_KEY`
+- `CLIENT_ID`
+- `SPREADSHEET_ID`
+- sheet names if needed
+
+### 3) Grant users sheet access
+
+Because this is client-side OAuth, each user edits with their own Google account permissions.
+Share the spreadsheet with users (or a Google Group) as **Editor**.
+
+### 4) Publish on GitHub Pages
+
+In GitHub repo settings:
+- `Settings` -> `Pages`
+- Source: `Deploy from a branch`
+- Branch: `main`
+- Folder: `/docs`
+
+Your app URL will be:
+`https://ybishay-gif.github.io/Model-Params/`
 
 ## Notes
 
-- `ChangeLog` is auto-created if missing.
-- User in logs comes from the optional email field on login (fallback: `external-user`).
+- `ChangeLog` is created automatically if missing.
+- Logs use the email typed in the app; fallback is `external-user`.
+- `APP_PASSWORD` in `docs/config.js` is visible client-side and is only a lightweight gate.

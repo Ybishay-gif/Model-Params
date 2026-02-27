@@ -1,0 +1,9 @@
+window.APP_CONFIG = {
+  APP_PASSWORD: 'CHANGE_ME',
+  API_KEY: 'YOUR_GOOGLE_API_KEY',
+  CLIENT_ID: 'YOUR_GOOGLE_OAUTH_CLIENT_ID.apps.googleusercontent.com',
+  SPREADSHEET_ID: '1-9_cPiP6vcEYRTQ914DWPFqkJs39c64Txw1E3sfDOUQ',
+  DATA_SHEET_NAME: 'LM model configuration',
+  LEGEND_SHEET_NAME: 'legend',
+  LOG_SHEET_NAME: 'ChangeLog'
+};
