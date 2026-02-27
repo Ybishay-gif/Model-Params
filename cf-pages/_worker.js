@@ -237,14 +237,14 @@ async function handleChangeLog(url, env) {
   }
 
   const headers = data[0].map(normalizeHeader);
-  const idxTimestamp = headers.indexOf('timestamp');
-  const idxUser = headers.indexOf('user');
-  const idxTactic = headers.indexOf('tactic');
-  const idxVertical = headers.indexOf('vertical');
-  const idxSegment = headers.indexOf('segment');
-  const idxParameter = headers.indexOf('parameter');
-  const idxOldValue = headers.indexOf('old value');
-  const idxNewValue = headers.indexOf('new value');
+  const idxTimestamp = findHeaderIndex(headers, ['timestamp', 'time', 'date'], 0);
+  const idxUser = findHeaderIndex(headers, ['user', 'email', 'username'], 1);
+  const idxTactic = findHeaderIndex(headers, ['tactic'], 2);
+  const idxVertical = findHeaderIndex(headers, ['vertical'], 3);
+  const idxSegment = findHeaderIndex(headers, ['segment'], 4);
+  const idxParameter = findHeaderIndex(headers, ['parameter', 'element', 'field'], 5);
+  const idxOldValue = findHeaderIndex(headers, ['old value', 'old', 'previous value'], 6);
+  const idxNewValue = findHeaderIndex(headers, ['new value', 'new', 'updated value'], 7);
 
   const rows = data.slice(1).map((r) => ({
     timestamp: r[idxTimestamp] || '',
@@ -309,6 +309,14 @@ function isValidEmail(value) {
 
 function uniqueSorted(values) {
   return [...new Set(values)].sort((a, b) => String(a).localeCompare(String(b)));
+}
+
+function findHeaderIndex(headers, candidates, fallback) {
+  for (const c of candidates) {
+    const i = headers.indexOf(c);
+    if (i >= 0) return i;
+  }
+  return fallback;
 }
 
 function json(obj, status = 200) {
