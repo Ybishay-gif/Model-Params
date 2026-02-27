@@ -1,4 +1,18 @@
 const TOKEN_CACHE = { accessToken: null, expiresAt: 0 };
+const ALLOWED_EMAILS = new Set([
+  'alenaangela.abella@libertymutual.com',
+  'andrew.hayes@libertymutual.com',
+  'bryn.damon@libertymutual.com',
+  'ethan@kissterra.com',
+  'lauren.oshea@libertymutual.com',
+  'michael.wettergren@libertymutual.com',
+  'monica.bull@libertymutual.com',
+  'ryan.hemker@libertymutual.com',
+  'ybishay@kissterra.com',
+  'gshaham@kissterra.com',
+  'ydigmal@kissterra.com',
+  'thasson@kissterra.com'
+]);
 
 export default {
   async fetch(request, env) {
@@ -65,6 +79,9 @@ async function handleLogin(request, env) {
   const user = String(body?.user || '').trim().toLowerCase();
   if (!isValidEmail(user)) {
     return json({ error: 'Valid email is required for logs' }, 400);
+  }
+  if (!ALLOWED_EMAILS.has(user)) {
+    return json({ error: 'This email is not authorized to access the app' }, 403);
   }
   const token = await signToken({ user, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 12 }, env.SESSION_SECRET);
   return json({ token });
