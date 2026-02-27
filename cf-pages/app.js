@@ -13,17 +13,11 @@ const GROUPS = {
 let sliderInstances = {};
 let legend = {};
 let successModal;
-let token = localStorage.getItem('model_params_token') || '';
+let token = '';
 
 document.getElementById('login-btn').addEventListener('click', verify);
 document.getElementById('save-btn').addEventListener('click', executeSave);
 ['tactic', 'vertical', 'segment'].forEach((id) => document.getElementById(id).addEventListener('change', fetchCurrentValues));
-
-if (token) {
-  document.getElementById('auth-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'flex';
-  init();
-}
 
 async function api(path, options = {}) {
   const response = await fetch(`${APP_CONFIG.API_BASE_URL}${path}`, {
@@ -51,7 +45,6 @@ async function verify() {
     }
     const data = await api('/api/login', { method: 'POST', body: JSON.stringify({ password, user }) });
     token = data.token;
-    localStorage.setItem('model_params_token', token);
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     init();
@@ -103,7 +96,6 @@ async function init() {
     await fetchCurrentValues();
   } catch (error) {
     if (String(error.message).includes('Unauthorized')) {
-      localStorage.removeItem('model_params_token');
       token = '';
       location.reload();
       return;
