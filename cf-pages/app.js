@@ -44,7 +44,11 @@ async function api(path, options = {}) {
 async function verify() {
   try {
     const password = document.getElementById('pass').value;
-    const user = document.getElementById('user').value || 'external-user';
+    const user = document.getElementById('user').value.trim().toLowerCase();
+    if (!isValidEmail(user)) {
+      alert('Enter a valid email for logging.');
+      return;
+    }
     const data = await api('/api/login', { method: 'POST', body: JSON.stringify({ password, user }) });
     token = data.token;
     localStorage.setItem('model_params_token', token);
@@ -54,6 +58,10 @@ async function verify() {
   } catch (error) {
     alert(error.message || 'Login failed');
   }
+}
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 async function init() {

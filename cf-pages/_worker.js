@@ -56,7 +56,10 @@ async function handleLogin(request, env) {
   if ((body?.password || '') !== env.APP_PASSWORD) {
     return json({ error: 'Invalid password' }, 401);
   }
-  const user = (body?.user || 'external-user').trim() || 'external-user';
+  const user = String(body?.user || '').trim().toLowerCase();
+  if (!isValidEmail(user)) {
+    return json({ error: 'Valid email is required for logs' }, 400);
+  }
   const token = await signToken({ user, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 12 }, env.SESSION_SECRET);
   return json({ token });
 }
@@ -228,6 +231,10 @@ function toNumberOrNull(value) {
   const cleaned = String(value).replace(/[$,]/g, '').trim();
   const num = Number(cleaned);
   return Number.isNaN(num) ? null : num;
+}
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 function json(obj, status = 200) {
