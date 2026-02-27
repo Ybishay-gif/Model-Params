@@ -1,0 +1,9 @@
+name = "model-params-api"
+main = "src/index.js"
+compatibility_date = "2026-02-27"
+
+[vars]
+DATA_SHEET_NAME = "LM model configuration"
+LEGEND_SHEET_NAME = "legend"
+LOG_SHEET_NAME = "ChangeLog"
+ALLOWED_ORIGIN = "https://ybishay-gif.github.io"
