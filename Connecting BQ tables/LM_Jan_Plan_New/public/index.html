@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Planning App</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div id="loginScreen" class="auth-screen">
+      <section class="auth-card">
+        <h2>Sign In</h2>
+        <p class="muted">Choose admin access or user login.</p>
+
+        <div class="auth-grid">
+          <div class="auth-pane">
+            <h3>Admin Access</h3>
+            <label for="adminAccessCode">Admin Code</label>
+            <input id="adminAccessCode" type="password" placeholder="Enter admin code" />
+            <button id="adminLoginBtn" type="button">Login as Admin</button>
+          </div>
+
+          <div class="auth-pane">
+            <h3>User Login</h3>
+            <label for="authEmail">User Email</label>
+            <input id="authEmail" type="email" placeholder="you@company.com" />
+            <button id="userContinueBtn" type="button">Continue</button>
+
+            <div id="userPasswordLoginWrap" hidden>
+              <label for="authPassword">Password</label>
+              <input id="authPassword" type="password" placeholder="Enter password" />
+              <button id="userLoginBtn" type="button">Login</button>
+            </div>
+
+            <div id="userPasswordSetupWrap" hidden>
+              <label for="authCreatePassword">Create Password</label>
+              <input id="authCreatePassword" type="password" placeholder="At least 8 characters" />
+              <label for="authConfirmPassword">Confirm Password</label>
+              <input id="authConfirmPassword" type="password" placeholder="Re-enter password" />
+              <button id="userSetPasswordBtn" type="button">Set Password & Login</button>
+            </div>
+          </div>
+        </div>
+
+        <p id="authStatus" class="muted"></p>
+      </section>
+    </div>
+
+    <main id="appLayout" class="app-layout" hidden>
+      <aside class="sidebar">
+        <h1>BeaconLM</h1>
+        <div class="global-filter">
+          <label for="activityLeadTypeFilter">Activity + Lead Type</label>
+          <select id="activityLeadTypeFilter">
+            <option value="all">All</option>
+            <option value="clicks_auto">Clicks + Auto</option>
+            <option value="clicks_home">Clicks + Home</option>
+            <option value="leads_auto">Leads + Auto</option>
+            <option value="leads_home">Leads + Home</option>
+            <option value="calls_auto">Calls + Auto</option>
+            <option value="calls_home">Calls + Home</option>
+          </select>
+        </div>
+        <nav class="sidebar-nav">
+          <button class="menu-item active" data-section="plan" id="planSectionBtn">
+            <span class="menu-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16v14H4zM8 3v4M16 3v4M8 11h8M8 15h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <span>Plan</span>
+          </button>
+          <div class="menu-submenu open" id="planMenuSubmenu">
+            <button id="planTabBuilder" class="menu-subitem active" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+              </span>
+              <span>Plan Builder</span>
+            </button>
+            <button id="planTabTargets" class="menu-subitem" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M5 5h14v14H5zM8 10h8M8 14h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              <span>Targets</span>
+            </button>
+            <button id="planTabStrategy" class="menu-subitem" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h12M4 18h8M18 10l2 2-4 4-3-3 5-5z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              <span>Plan Strategy</span>
+            </button>
+          </div>
+
+          <button class="menu-item" data-section="analytics" id="analyticsSectionBtn">
+            <span class="menu-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M4 19V5M10 19V9M16 19V12M22 19V7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <span>Analytics</span>
+          </button>
+
+          <div class="menu-submenu" id="analyticsMenuSubmenu">
+            <button id="analyticsTabStateSegment" class="menu-subitem active" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h10M4 18h14M17 10v8M13 14h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+              </span>
+              <span>State &amp; Channel Performance</span>
+            </button>
+            <button id="analyticsTabPriceExploration" class="menu-subitem" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 17l5-5 4 3 7-8M17 7h3v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              <span>Price Exploration</span>
+            </button>
+            <button id="analyticsTabStrategyAnalysis" class="menu-subitem" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h10M18 12v6M14 16h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              <span>Strategy Analysis</span>
+            </button>
+          </div>
+
+          <button class="menu-item" data-section="settings">
+            <span class="menu-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7zm8-3.5-.9-.5a7.8 7.8 0 0 0-.1-1l.8-.6-1.6-2.8-.9.3a7.8 7.8 0 0 0-.8-.7l-.1-1h-3.2l-.3.9a7.8 7.8 0 0 0-1 0l-.5-.9H8.2l-.5.9a7.8 7.8 0 0 0-1 .2l-.8-.4L4.3 9l.8.6a7.8 7.8 0 0 0-.1 1l-.9.5 1.2 3.1 1-.1a7.8 7.8 0 0 0 .7.8l-.2 1h3.2l.5-.9a7.8 7.8 0 0 0 1 0l.6.9h3.2l.1-1a7.8 7.8 0 0 0 .8-.7l.9.1L20 12z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+            </span>
+            <span>Settings</span>
+          </button>
+          <div class="menu-submenu" id="settingsMenuSubmenu">
+            <button id="settingsSubConfig" class="menu-subitem active" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M5 5h14v4H5zM5 10h14v9H5zM8 13h8M8 16h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              <span>Configuration</span>
+            </button>
+            <button id="settingsSubUsers" class="menu-subitem" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm8 1a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM3.5 19a4.5 4.5 0 0 1 9 0M13.5 19a3.5 3.5 0 0 1 7 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              <span>User Management</span>
+            </button>
+          </div>
+        </nav>
+      </aside>
+
+      <section class="content">
+        <div class="section-content active" data-section-panel="plan">
+          <div id="planBuilderPanel" class="tab-panel active">
+            <section class="card">
+              <h2>Create Plan</h2>
+              <label for="planName">Plan Name</label>
+              <input id="planName" type="text" placeholder="Q2 Growth Plan" />
+              <label for="planDesc">Description</label>
+              <input id="planDesc" type="text" placeholder="Optional" />
+              <button id="createPlan">Create Plan</button>
+              <p id="createStatus" class="muted"></p>
+            </section>
+
+            <section class="card">
+              <h2>Plans</h2>
+              <button id="refreshPlans">Refresh</button>
+              <ul id="plansList"></ul>
+            </section>
+
+            <section class="card">
+              <h2>Plan Actions</h2>
+              <label for="selectedPlanId">Plan ID</label>
+              <input id="selectedPlanId" type="text" placeholder="Paste plan_id" />
+
+              <h3>Set Parameter</h3>
+              <input id="paramKey" type="text" placeholder="target_budget" />
+              <input id="paramValue" type="text" placeholder="100000" />
+              <select id="paramType">
+                <option value="int">int</option>
+                <option value="float">float</option>
+                <option value="bool">bool</option>
+                <option value="string">string</option>
+                <option value="json">json</option>
+              </select>
+              <button id="saveParameter">Save Parameter</button>
+
+              <h3>Add Decision</h3>
+              <input id="decisionType" type="text" placeholder="bid_adjustment" />
+              <input id="decisionValue" type="text" placeholder="0.1" />
+              <input id="decisionState" type="text" placeholder="state (optional)" />
+              <input id="decisionChannel" type="text" placeholder="channel (optional)" />
+              <button id="addDecision">Add Decision</button>
+
+              <h3>Run</h3>
+              <button id="runPlan">Trigger Run</button>
+
+              <p id="actionStatus" class="muted"></p>
+            </section>
+          </div>
+
+          <div id="targetsPanel" class="tab-panel">
+            <section class="card">
+              <h2>Targets</h2>
+              <div class="filters-grid">
+                <div>
+                  <label for="targetsStartDate">Start Date</label>
+                  <input id="targetsStartDate" type="date" />
+                </div>
+                <div>
+                  <label for="targetsEndDate">End Date</label>
+                  <input id="targetsEndDate" type="date" />
+                </div>
+              </div>
+              <div class="action-row targets-actions">
+                <button id="uploadTargetsFile" type="button">Upload Target File</button>
+                <button id="downloadTargetsFile" type="button">Download Updated File</button>
+                <input id="targetsFileInput" type="file" accept=".xlsx,.xls,.csv" hidden />
+              </div>
+              <p id="targetsStatus" class="muted"></p>
+
+              <div class="target-mode-toggle" id="targetsGoalModeToggle">
+                <button id="targetsModeCpb" class="toggle-pill active" type="button">CPB Targets</button>
+                <button id="targetsModeRoe" class="toggle-pill" type="button">ROE Targets</button>
+                <button id="targetsModeCor" class="toggle-pill" type="button">COR Targets</button>
+              </div>
+
+              <section id="derivedTargetPanel" class="derived-target-panel" hidden>
+                <h3 id="derivedTargetTitle">ROE Target Rules</h3>
+                <div class="action-row targets-rule-actions">
+                  <button id="addDerivedTargetRule" class="icon-square-btn" type="button" title="Add Rule" aria-label="Add Rule">+</button>
+                  <button id="downloadDerivedTargetsFile" type="button">Download Targets</button>
+                  <button id="adjustDerivedTargetBtn" type="button">Adjust CPB Target</button>
+                </div>
+                <div class="table-wrap">
+                  <table id="derivedTargetRulesTable">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>States</th>
+                        <th>Segments</th>
+                        <th id="derivedTargetMetricHeader">Target ROE</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="derivedTargetRulesBody"></tbody>
+                  </table>
+                </div>
+                <p id="derivedTargetRulesStatus" class="muted"></p>
+
+                <div id="derivedTargetPreviewWrap" class="table-wrap" hidden>
+                  <table id="derivedTargetPreviewTable">
+                    <thead>
+                      <tr>
+                        <th>Rule Name</th>
+                        <th>Source</th>
+                        <th>Segment</th>
+                        <th>State</th>
+                        <th>Current CPB</th>
+                        <th>Current ROE</th>
+                        <th>Current COR</th>
+                        <th id="derivedTargetPreviewMetricHeader">Target ROE</th>
+                        <th>Adjusted Target CPB</th>
+                      </tr>
+                    </thead>
+                    <tbody id="derivedTargetPreviewBody"></tbody>
+                  </table>
+                </div>
+              </section>
+
+              <div class="table-wrap">
+                <table id="targetsTable">
+                  <thead>
+                    <tr>
+                      <th data-sort-key="state" class="sortable">State</th>
+                      <th data-sort-key="segment" class="sortable">Segment</th>
+                      <th data-sort-key="source" class="sortable">Source</th>
+                      <th data-sort-key="current_target" class="sortable">Current Target</th>
+                      <th data-sort-key="target_value" class="sortable">Target</th>
+                      <th data-sort-key="sold" class="sortable">Sold</th>
+                      <th data-sort-key="binds" class="sortable">Binds</th>
+                      <th data-sort-key="cpb" class="sortable">CPB</th>
+                      <th data-sort-key="target_cpb" class="sortable">Target CPB</th>
+                      <th data-sort-key="performance" class="sortable">Performance</th>
+                      <th data-sort-key="roe" class="sortable">ROE</th>
+                      <th data-sort-key="combined_ratio" class="sortable">COR</th>
+                    </tr>
+                  </thead>
+                  <tbody id="targetsTableBody"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <div id="planStrategyPanel" class="tab-panel">
+            <section class="card">
+              <h2>Plan Strategy</h2>
+
+              <section class="derived-target-panel">
+                <h3>1. States and Segment</h3>
+                <div class="action-row targets-rule-actions">
+                  <button id="addPlanStrategyRule" class="icon-square-btn" type="button" title="Add Rule" aria-label="Add Rule">+</button>
+                </div>
+                <div class="table-wrap">
+                  <table id="planStrategyRulesTable">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>States</th>
+                        <th>Segments</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="planStrategyRulesBody"></tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section class="derived-target-panel">
+                <h3>2. Strategy Settings</h3>
+                <div class="table-wrap">
+                  <table id="planStrategySettingsTable">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>States</th>
+                        <th>Segments</th>
+                        <th>Max CPC Uplift (%)</th>
+                        <th>Max CPB Uplift (%)</th>
+                        <th>Growth Strategy</th>
+                      </tr>
+                    </thead>
+                    <tbody id="planStrategySettingsBody"></tbody>
+                  </table>
+                </div>
+                <div class="action-row targets-rule-actions plan-strategy-save-row">
+                  <button id="savePlanStrategyBtn" type="button">Save Strategy Parameters</button>
+                </div>
+                <p id="planStrategyStatus" class="muted"></p>
+              </section>
+            </section>
+          </div>
+        </div>
+
+        <div class="section-content" data-section-panel="analytics">
+          <section class="card">
+            <h2>Analytics</h2>
+
+            <div id="stateSegmentPanel" class="tab-panel active">
+              <div class="filters-grid analytics-date-row">
+                <div>
+                  <label for="startDate">Start Date</label>
+                  <input id="startDate" class="compact-date" type="date" />
+                </div>
+                <div>
+                  <label for="endDate">End Date</label>
+                  <input id="endDate" class="compact-date" type="date" />
+                </div>
+              </div>
+              <div class="filters-grid analytics-filter-row">
+                <div>
+                  <label>Filter by State (multi-select)</label>
+                  <div class="multi-dropdown">
+                    <button id="statesFilterToggle" class="dropdown-toggle" type="button">All states</button>
+                    <div id="statesFilterMenu" class="dropdown-menu"></div>
+                  </div>
+                </div>
+                <div>
+                  <label>Filter by Segment (multi-select)</label>
+                  <div class="multi-dropdown">
+                    <button id="segmentsFilterToggle" class="dropdown-toggle" type="button">All segments</button>
+                    <div id="segmentsFilterMenu" class="dropdown-menu"></div>
+                  </div>
+                </div>
+                <div>
+                  <label>Filter by Channel Group (multi-select)</label>
+                  <div class="multi-dropdown">
+                    <button id="stateSegmentChannelsFilterToggle" class="dropdown-toggle" type="button">
+                      All channel groups
+                    </button>
+                    <div id="stateSegmentChannelsFilterMenu" class="dropdown-menu"></div>
+                  </div>
+                </div>
+                <div>
+                  <label for="stateSegmentViewMode">View By</label>
+                  <select id="stateSegmentViewMode">
+                    <option value="state_segment_channel">State &amp; Segment &amp; Channel Group</option>
+                    <option value="state_segment" selected>State &amp; Segment</option>
+                    <option value="state_channel">State &amp; Channel Group</option>
+                    <option value="segment_channel">Segment &amp; Channel Group</option>
+                    <option value="state">State</option>
+                    <option value="segment">Segment</option>
+                    <option value="channel">Channel Group</option>
+                  </select>
+                </div>
+              </div>
+              <div class="action-row analytics-actions">
+                <button id="applyAnalyticsFilters" class="compact-btn" type="button">Apply Filters</button>
+                <button id="clearAnalyticsFilters" class="compact-btn secondary-btn" type="button">Clear Filters</button>
+                <button id="exportStateSegmentExcel" class="compact-btn export-btn" type="button">
+                  <span class="btn-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none">
+                      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                      <path d="M14 3v5h5" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                      <path d="M9 13l6 6M15 13l-6 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                    </svg>
+                  </span>
+                  <span>Export to Excel</span>
+                </button>
+              </div>
+              <p id="analyticsStatus" class="muted"></p>
+              <div class="table-wrap">
+                <table id="stateSegmentTable">
+                  <thead>
+                    <tr>
+                      <th data-sort-key="state" class="sortable dim-state">State</th>
+                      <th data-sort-key="segment" class="sortable dim-segment">Segment</th>
+                      <th data-sort-key="channel_group_name" class="sortable dim-channel">Channel Group</th>
+                      <th data-sort-key="bids" class="sortable">Bids</th>
+                      <th data-sort-key="sold" class="sortable">Sold</th>
+                      <th data-sort-key="total_cost" class="sortable">Total Cost</th>
+                      <th data-sort-key="quote_started" class="sortable">Quote Started</th>
+                      <th data-sort-key="quotes" class="sortable">Quotes</th>
+                      <th data-sort-key="binds" class="sortable">Binds</th>
+                      <th data-sort-key="q2b_score" class="sortable">Q2B Score</th>
+                      <th data-sort-key="scored_policies" class="sortable">Scored Policies</th>
+                      <th data-sort-key="cpb" class="sortable">CPB</th>
+                      <th data-sort-key="target_cpb" class="sortable">Target CPB</th>
+                      <th data-sort-key="performance" class="sortable">Performance</th>
+                      <th data-sort-key="roe" class="sortable">ROE</th>
+                      <th data-sort-key="combined_ratio" class="sortable">Combine Ratio</th>
+                      <th data-sort-key="mrltv" class="sortable">MRLTV</th>
+                      <th data-sort-key="profit" class="sortable">Profit</th>
+                      <th data-sort-key="equity" class="sortable">Equity</th>
+                    </tr>
+                  </thead>
+                  <tbody id="stateSegmentTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div id="priceExplorationPanel" class="tab-panel">
+              <div class="filters-grid">
+                <div>
+                  <label for="priceStartDate">Start Date</label>
+                  <input id="priceStartDate" class="compact-date" type="date" />
+                </div>
+                <div>
+                  <label for="priceEndDate">End Date</label>
+                  <input id="priceEndDate" class="compact-date" type="date" />
+                </div>
+                <div>
+                  <label>Filter by State (multi-select)</label>
+                  <div class="multi-dropdown">
+                    <button id="priceStatesFilterToggle" class="dropdown-toggle" type="button">All states</button>
+                    <div id="priceStatesFilterMenu" class="dropdown-menu"></div>
+                  </div>
+                </div>
+                <div>
+                  <label>Filter by Channel (multi-select)</label>
+                  <div class="multi-dropdown">
+                    <button id="priceChannelGroupsFilterToggle" class="dropdown-toggle" type="button">All channels</button>
+                    <div id="priceChannelGroupsFilterMenu" class="dropdown-menu"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="action-row analytics-actions">
+                <button id="applyPriceExplorationFilters" class="compact-btn" type="button">Apply Filters</button>
+                <button id="clearPriceExplorationFilters" class="compact-btn secondary-btn" type="button">
+                  Clear Filters
+                </button>
+              </div>
+              <p id="priceExplorationStatus" class="muted"></p>
+
+              <div class="kpi-grid">
+                <article class="kpi-card"><h3>Opps</h3><p id="kpiOpps">-</p></article>
+                <article class="kpi-card"><h3>Bids</h3><p id="kpiBids">-</p></article>
+                <article class="kpi-card"><h3>Win Rate</h3><p id="kpiWinRate">-</p></article>
+                <article class="kpi-card"><h3>Sold</h3><p id="kpiSold">-</p></article>
+                <article class="kpi-card"><h3>CPC</h3><p id="kpiCpc">-</p></article>
+                <article class="kpi-card"><h3>Avg Bid</h3><p id="kpiAvgBid">-</p></article>
+                <article class="kpi-card"><h3>Win Rate Uplift</h3><p id="kpiWinRateUplift">-</p></article>
+                <article class="kpi-card"><h3>CPC Uplift</h3><p id="kpiCpcUplift">-</p></article>
+                <article class="kpi-card"><h3>Additional Clicks</h3><p id="kpiAdditionalClicks">-</p></article>
+                <article class="kpi-card"><h3>Additional Budget Needed</h3><p id="kpiAdditionalBudget">-</p></article>
+                <article class="kpi-card"><h3>Stat-Sig</h3><p id="kpiStatSig">-</p></article>
+              </div>
+
+              <div class="table-wrap">
+                <table id="priceExplorationTable">
+                  <thead>
+                    <tr>
+                      <th>Channel Group</th>
+                      <th>State</th>
+                      <th>Testing Point</th>
+                      <th>Recommended TP</th>
+                      <th>Win Rate</th>
+                      <th>Avg Bid</th>
+                      <th>CPC</th>
+                      <th>Sold</th>
+                      <th>WR uplift</th>
+                      <th>CPC Uplift</th>
+                      <th>Chahnel WR uplift</th>
+                      <th>Channel CPC uplift</th>
+                      <th>Additional Sold</th>
+                      <th>Additional Budget</th>
+                      <th>Current CPB</th>
+                      <th>Expected CPB</th>
+                      <th>CPB uplift</th>
+                      <th>Stat-Sig</th>
+                      <th>Channel quotes</th>
+                      <th>Channel sold 2 quotes</th>
+                      <th>Binds</th>
+                      <th>Q2B</th>
+                      <th>Channel binds</th>
+                      <th>Channel q2B</th>
+                      <th>Expected Bind Change</th>
+                    </tr>
+                  </thead>
+                  <tbody id="priceExplorationTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div id="strategyAnalysisPanel" class="tab-panel">
+              <div class="filters-grid">
+                <div>
+                  <label for="strategyAnalysisStartDate">Start Date</label>
+                  <input id="strategyAnalysisStartDate" class="compact-date" type="date" />
+                </div>
+                <div>
+                  <label for="strategyAnalysisEndDate">End Date</label>
+                  <input id="strategyAnalysisEndDate" class="compact-date" type="date" />
+                </div>
+                <div>
+                  <label for="strategyAnalysisPlanId">Plan ID</label>
+                  <input id="strategyAnalysisPlanId" type="text" placeholder="Uses selected Plan ID if empty" />
+                </div>
+              </div>
+              <div class="action-row analytics-actions">
+                <button id="applyStrategyAnalysisFilters" class="compact-btn" type="button">Load Strategy Analysis</button>
+              </div>
+              <p id="strategyAnalysisStatus" class="muted"></p>
+              <div class="table-wrap">
+                <table id="strategyAnalysisTable">
+                  <thead>
+                    <tr>
+                      <th>Rule Name</th>
+                      <th>States</th>
+                      <th>Segments</th>
+                      <th>Bids</th>
+                      <th>Sold</th>
+                      <th>WR</th>
+                      <th>Quotes</th>
+                      <th>Binds</th>
+                      <th>Q2B</th>
+                      <th>Performance</th>
+                      <th>ROE</th>
+                      <th>COR</th>
+                      <th>Additional Clicks</th>
+                      <th>Additional Binds</th>
+                      <th>CPB Uplift</th>
+                      <th>Additional Budget</th>
+                    </tr>
+                  </thead>
+                  <tbody id="strategyAnalysisTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div class="section-content" data-section-panel="settings">
+          <div id="settingsConfigPanel" class="tab-panel active">
+            <section class="card">
+              <h2>Session</h2>
+              <p id="meStatus" class="muted"></p>
+              <button id="logoutBtn" type="button">Logout</button>
+            </section>
+
+            <section class="card">
+              <h2>Configuration</h2>
+
+              <h3>Date Range Defaults</h3>
+              <div class="filters-grid">
+                <div>
+                  <label for="perfFromDays">Performance: From (days before today)</label>
+                  <input id="perfFromDays" type="number" min="1" step="1" value="30" />
+                </div>
+                <div>
+                  <label for="perfToDays">Performance: To (days before today)</label>
+                  <input id="perfToDays" type="number" min="0" step="1" value="7" />
+                </div>
+              </div>
+              <p id="perfDateRangePreview" class="muted"></p>
+
+              <div class="filters-grid">
+                <div>
+                  <label for="priceFromDays">Price Exploration: From (days before today)</label>
+                  <input id="priceFromDays" type="number" min="1" step="1" value="30" />
+                </div>
+                <div>
+                  <label for="priceToDays">Price Exploration: To (days before today)</label>
+                  <input id="priceToDays" type="number" min="0" step="1" value="7" />
+                </div>
+              </div>
+              <p id="priceDateRangePreview" class="muted"></p>
+
+              <div class="filters-grid">
+                <div>
+                  <label for="targetsFromDays">Targets: From (days before today)</label>
+                  <input id="targetsFromDays" type="number" min="1" step="1" value="30" />
+                </div>
+                <div>
+                  <label for="targetsToDays">Targets: To (days before today)</label>
+                  <input id="targetsToDays" type="number" min="0" step="1" value="7" />
+                </div>
+              </div>
+              <p id="targetsDateRangePreview" class="muted"></p>
+
+              <h3>Cost (QBC)</h3>
+              <div class="filters-grid">
+                <div>
+                  <label for="qbcClicks">QBC for Clicks</label>
+                  <input id="qbcClicks" type="number" min="0" step="0.01" value="1" />
+                </div>
+                <div>
+                  <label for="qbcLeadsCalls">QBC for Leads and Calls</label>
+                  <input id="qbcLeadsCalls" type="number" min="0" step="0.01" value="1" />
+                </div>
+              </div>
+              <p class="muted">QBC is applied to ROE and Combine Ratio in the analytics display.</p>
+              <button id="saveConfiguration" type="button">Save Configuration</button>
+              <p id="configurationStatus" class="muted"></p>
+            </section>
+
+            <section class="card">
+              <h2>Targets</h2>
+              <p class="muted">Upload a default target file to auto-load when no file is uploaded in Plan &gt; Targets.</p>
+              <div class="action-row targets-settings-actions">
+                <button id="setDefaultTargetsFile" type="button">Set Default Target File</button>
+                <button id="clearDefaultTargetsFile" type="button">Clear Default File</button>
+                <input id="defaultTargetsFileInput" type="file" accept=".xlsx,.xls,.csv" hidden />
+              </div>
+              <p id="defaultTargetsFileStatus" class="muted"></p>
+            </section>
+
+            <section class="card">
+              <h2>Change Log</h2>
+              <div class="action-row">
+                <button id="refreshChangeLog" type="button">Refresh Change Log</button>
+              </div>
+              <p id="changeLogStatus" class="muted"></p>
+              <div class="table-wrap">
+                <table id="changeLogTable">
+                  <thead>
+                    <tr>
+                      <th>Timestamp</th>
+                      <th>User</th>
+                      <th>Object</th>
+                      <th>Action</th>
+                      <th>Before</th>
+                      <th>After</th>
+                    </tr>
+                  </thead>
+                  <tbody id="changeLogTableBody"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <div id="settingsUsersPanel" class="tab-panel">
+            <section class="card">
+              <h2>User Management</h2>
+              <div class="filters-grid">
+                <div>
+                  <label for="newUserEmail">Add User Email</label>
+                  <input id="newUserEmail" type="email" placeholder="new.user@company.com" />
+                </div>
+              </div>
+              <div class="action-row">
+                <button id="addUserBtn" type="button">Add User</button>
+                <button id="refreshUsersBtn" type="button">Refresh Users</button>
+              </div>
+              <p id="usersStatus" class="muted"></p>
+              <div class="table-wrap">
+                <table id="usersTable">
+                  <thead>
+                    <tr>
+                      <th>Email</th>
+                      <th>Role</th>
+                      <th>Active</th>
+                      <th>Last Login</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="usersTableBody"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="/vendor/xlsx.full.min.js"></script>
+    <script src="/main.js?v=20260302-1" type="module"></script>
+  </body>
+</html>
