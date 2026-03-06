@@ -515,7 +515,7 @@
           </div>
 
           <div id="planOutcomePanel" class="tab-panel">
-            <section class="card">
+            <section class="card plan-outcome-card">
               <div class="analytics-toolbar">
                 <h2 class="analytics-page-title">Plan Outcome</h2>
               </div>
@@ -524,21 +524,53 @@
                 <span>Loading data...</span>
               </div>
               <p id="planOutcomeStatus" class="muted"></p>
-              <div class="table-wrap">
-                <table id="planOutcomeTable">
-                  <thead>
-                    <tr>
-                      <th>Tier &amp; Recommended TP</th>
-                      <th>Channel Groups</th>
-                      <th>States</th>
-                      <th>Expected Clicks</th>
-                      <th>Expected Binds</th>
-                      <th>Expected CPC</th>
-                      <th>Expected CPB</th>
-                    </tr>
-                  </thead>
-                  <tbody id="planOutcomeTableBody"></tbody>
-                </table>
+              <div class="kpi-grid" id="planOutcomeKpiGrid">
+                <article class="kpi-card"><h3>Outcome Groups</h3><p id="planOutcomeKpiRows">-</p></article>
+                <article class="kpi-card"><h3>States Covered</h3><p id="planOutcomeKpiStates">-</p></article>
+                <article class="kpi-card"><h3>Channel Groups</h3><p id="planOutcomeKpiChannels">-</p></article>
+                <article class="kpi-card"><h3>Expected Clicks</h3><p id="planOutcomeKpiClicks">-</p></article>
+                <article class="kpi-card"><h3>Expected Binds</h3><p id="planOutcomeKpiBinds">-</p></article>
+                <article class="kpi-card"><h3>Weighted CPC</h3><p id="planOutcomeKpiCpc">-</p></article>
+                <article class="kpi-card"><h3>Weighted CPB</h3><p id="planOutcomeKpiCpb">-</p></article>
+              </div>
+
+              <div class="plan-outcome-layout">
+                <section class="state-rule-card plan-outcome-summary-card">
+                  <div class="plan-outcome-section-head">
+                    <div>
+                      <h3>Outcome Groups</h3>
+                      <p id="planOutcomeSummaryStatus" class="muted">Select a plan to load outcome groups.</p>
+                    </div>
+                  </div>
+                  <div id="planOutcomeSummaryList" class="plan-outcome-summary-list"></div>
+                </section>
+
+                <section class="state-rule-card plan-outcome-detail-card">
+                  <div class="plan-outcome-section-head">
+                    <div>
+                      <h3 id="planOutcomeDetailTitle">Outcome Table</h3>
+                      <p id="planOutcomeDetailMeta" class="muted">
+                        Grouped by tier, strategy, and recommended testing point.
+                      </p>
+                    </div>
+                  </div>
+                  <div class="table-wrap plan-outcome-table-wrap">
+                    <table id="planOutcomeTable">
+                      <thead>
+                        <tr>
+                          <th>Tier &amp; Recommended TP</th>
+                          <th>Channel Groups</th>
+                          <th>States</th>
+                          <th>Expected Clicks</th>
+                          <th>Expected Binds</th>
+                          <th>Expected CPC</th>
+                          <th>Expected CPB</th>
+                        </tr>
+                      </thead>
+                      <tbody id="planOutcomeTableBody"></tbody>
+                    </table>
+                  </div>
+                </section>
               </div>
             </section>
           </div>

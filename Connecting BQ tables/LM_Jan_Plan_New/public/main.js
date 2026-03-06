@@ -159,6 +159,7 @@ const state = {
   plansComparisonMode: "plans",
   plansComparisonPlanId: "",
   planOutcomeRows: [],
+  planOutcomeSelectedKey: "",
   priceExplorationRows: [],
   priceExplorationKpiRows: [],
   priceDecisionRows: [],
@@ -448,6 +449,17 @@ const el = {
   priceDecisionTableBody: document.getElementById("priceDecisionTableBody"),
   planOutcomeLoading: document.getElementById("planOutcomeLoading"),
   planOutcomeStatus: document.getElementById("planOutcomeStatus"),
+  planOutcomeKpiRows: document.getElementById("planOutcomeKpiRows"),
+  planOutcomeKpiStates: document.getElementById("planOutcomeKpiStates"),
+  planOutcomeKpiChannels: document.getElementById("planOutcomeKpiChannels"),
+  planOutcomeKpiClicks: document.getElementById("planOutcomeKpiClicks"),
+  planOutcomeKpiBinds: document.getElementById("planOutcomeKpiBinds"),
+  planOutcomeKpiCpc: document.getElementById("planOutcomeKpiCpc"),
+  planOutcomeKpiCpb: document.getElementById("planOutcomeKpiCpb"),
+  planOutcomeSummaryStatus: document.getElementById("planOutcomeSummaryStatus"),
+  planOutcomeSummaryList: document.getElementById("planOutcomeSummaryList"),
+  planOutcomeDetailTitle: document.getElementById("planOutcomeDetailTitle"),
+  planOutcomeDetailMeta: document.getElementById("planOutcomeDetailMeta"),
   planOutcomeTableBody: document.getElementById("planOutcomeTableBody"),
   strategyAnalysisDateRange: document.getElementById("strategyAnalysisDateRange"),
   strategyAnalysisStartDate: document.getElementById("strategyAnalysisStartDate"),
@@ -942,6 +954,15 @@ function stopMainContentLoading(token) {
     mainContentLoadTokens.clear();
   }
   updateMainContentLoadingOverlay();
+}
+
+async function withMainContentLoading(task) {
+  const loadingToken = startMainContentLoading();
+  try {
+    return await task();
+  } finally {
+    stopMainContentLoading(loadingToken);
+  }
 }
 
 let panelLoadTokenSeq = 0;
@@ -3226,11 +3247,11 @@ function renderDerivedTargetPreview(adjustments) {
       item.row.source || "-",
       item.row.segment || "-",
       item.row.state || "-",
-      formatDecimal(item.row.cpb, 2),
+      formatCurrency(item.row.cpb, 2),
       formatPercent(item.row.roe),
       formatPercent(item.row.combined_ratio),
       formatPercent(item.targetMetricValue),
-      formatDecimal(item.adjustedTargetCpb, 2)
+      formatCurrency(item.adjustedTargetCpb, 2)
     ];
     for (const value of cells) {
       const td = document.createElement("td");
@@ -4913,19 +4934,38 @@ function getTargetsColumns(rows) {
   return {
     columns: [
       ...common,
-      { key: "sold", label: "Sold", render: (row) => formatInt(row.sold) },
-      { key: "binds", label: "Binds", render: (row) => formatInt(row.binds) },
-      { key: "cpb", label: "CPB", render: (row) => formatDecimal(row.cpb, 2) },
-      { key: "target_cpb", label: "Target CPB", render: (row) => formatDecimal(row.target_cpb, 2) },
-      { key: "performance", label: "Performance", render: (row) => formatPercent(row.performance) },
-      { key: "roe", label: "ROE", render: (row) => formatPercent(row.roe) },
-      { key: "combined_ratio", label: "COR", render: (row) => formatPercent(row.combined_ratio) }
+      { key: "sold", label: "Sold", className: "targets-col-compact-num", render: (row) => formatInt(row.sold) },
+      { key: "binds", label: "Binds", className: "targets-col-compact-num", render: (row) => formatInt(row.binds) },
+      { key: "cpb", label: "CPB", className: "targets-col-currency", render: (row) => formatCurrency(row.cpb, 2) },
+      {
+        key: "target_cpb",
+        label: "Target CPB",
+        className: "targets-col-currency",
+        render: (row) => formatCurrency(row.target_cpb, 2)
+      },
+      {
+        key: "performance",
+        label: "Performance",
+        className: "targets-col-percent",
+        render: (row) => formatPercent(row.performance)
+      },
+      { key: "roe", label: "ROE", className: "targets-col-percent", render: (row) => formatPercent(row.roe) },
+      {
+        key: "combined_ratio",
+        label: "COR",
+        className: "targets-col-percent",
+        render: (row) => formatPercent(row.combined_ratio)
+      }
     ],
     derivedMap
   };
 }
 
 function renderTargetsHeader(columns) {
+  const targetsTable = document.getElementById("targetsTable");
+  if (targetsTable) {
+    targetsTable.dataset.targetsMode = state.targetsGoalMode;
+  }
   const headerRow = document.querySelector("#targetsTable thead tr");
   if (!headerRow) {
     return;
@@ -5207,8 +5247,8 @@ function renderStateSegmentRows(rows) {
       formatInt(row.binds),
       formatPercent(row.q2b_score),
       formatInt(row.scored_policies),
-      formatDecimal(row.cpb, 2),
-      formatDecimal(row.target_cpb, 2),
+      formatCurrency(row.cpb, 2),
+      formatCurrency(row.target_cpb, 2),
       formatPercent(row.performance),
       formatPercent(roeAdjusted),
       formatPercent(combineAdjusted),
@@ -6880,6 +6920,108 @@ async function refreshPlans() {
   }
 }
 
+async function loadActiveViewData() {
+  if (state.activeSection === "plan") {
+    if (state.activePlanTab === "builder") {
+      await refreshPlans();
+      return;
+    }
+    if (state.activePlanTab === "targets") {
+      const targetsRange = getTargetsDefaultRange();
+      applyDateRange("targets", targetsRange.startIso, targetsRange.endIso, { trigger: false });
+      await refreshDerivedTargetOptions();
+      try {
+        await loadPlanContextForSelectedPlan();
+        applyPlanAndTargetDefaultsToInputs();
+        await loadTargetsSharedConfigForSelectedPlan();
+        await ensureTargetsDefaultLoaded();
+        await refreshTargetsFileMode();
+      } catch (err) {
+        setStatus(el.targetsStatus, err.message || "Failed to load targets default file.", true);
+      }
+      return;
+    }
+    if (state.activePlanTab === "strategy") {
+      const targetsRange = getTargetsDefaultRange();
+      applyDateRange("targets", targetsRange.startIso, targetsRange.endIso, { trigger: false });
+      try {
+        await ensureSelectedPlanId();
+      } catch (_err) {
+        // No-op: load handler below will show relevant status.
+      }
+      await refreshPlanStrategyOptions();
+      await loadPlanStrategyForSelectedPlan();
+      return;
+    }
+    if (state.activePlanTab === "price-decision") {
+      const priceRange = getPlanPriceExplorationRange();
+      applyDateRange("priceDecision", priceRange.startIso, priceRange.endIso, { trigger: false });
+      await loadPlanStrategyForSelectedPlan();
+      await loadPriceDecisionOverridesForSelectedPlan();
+      await refreshPriceDecisionFilters();
+      resetPriceDecisionResults("Filters are ready. Click Apply Filters.");
+      return;
+    }
+    if (state.activePlanTab === "outcome") {
+      await loadPlanStrategyForSelectedPlan();
+      await refreshPlanOutcomeTable();
+    }
+    return;
+  }
+
+  if (state.activeSection === "analytics") {
+    if (state.activeAnalyticsTab === "state-segment") {
+      const perfRange = getPlanPerformanceRange();
+      applySharedPerformanceDateRange(perfRange.startIso, perfRange.endIso);
+      await refreshAnalyticsFilters();
+      await refreshStateSegmentTable();
+      return;
+    }
+    if (state.activeAnalyticsTab === "price-exploration") {
+      const priceRange = getPlanPriceExplorationRange();
+      applySharedPriceExplorationDateRange(priceRange.startIso, priceRange.endIso);
+      await refreshPriceExplorationFilters();
+      resetPriceExplorationResults();
+      return;
+    }
+    if (state.activeAnalyticsTab === "strategy-analysis") {
+      const perfRange = getPlanPerformanceRange();
+      applySharedPerformanceDateRange(perfRange.startIso, perfRange.endIso);
+      await refreshStrategyAnalysisTable();
+      return;
+    }
+    if (state.activeAnalyticsTab === "plans-comparison") {
+      const perfRange = getPlanPerformanceRange();
+      applyDateRange("plansComparison", perfRange.startIso, perfRange.endIso, { trigger: false });
+      applyPlansComparisonModeUi();
+      renderPlansComparisonPlanOptions();
+      setStatus(el.plansComparisonStatus, "Filters are ready. Click Apply Filters.");
+      return;
+    }
+    if (state.activeAnalyticsTab === "state-analysis") {
+      const perfRange = getPlanPerformanceRange();
+      applySharedPerformanceDateRange(perfRange.startIso, perfRange.endIso);
+      await refreshStateAnalysis();
+      return;
+    }
+    if (state.activeAnalyticsTab === "state-plan-analysis") {
+      const perfRange = getPlanPerformanceRange();
+      applySharedPerformanceDateRange(perfRange.startIso, perfRange.endIso);
+      await refreshStatePlanAnalysis();
+    }
+    return;
+  }
+
+  if (state.activeSection === "settings") {
+    if (state.activeSettingsTab === "users") {
+      await refreshManagedUsers();
+      return;
+    }
+    await loadDefaultTargetsFilesByScopeForSelectedPlan();
+    renderSettingsGlobalFiltersTable();
+  }
+}
+
 async function refreshAnalyticsFilters() {
   try {
     const params = new URLSearchParams();
@@ -7735,6 +7877,10 @@ function formatUpliftInCell(value, uplift) {
   return `${value}${upliftText}`;
 }
 
+function getPlanOutcomeRowKey(row) {
+  return `${row.tier}|${row.strategyLabel}|${row.testingPoint}`;
+}
+
 function derivePlanOutcomeRows(rows) {
   const groupedPairs = new Map();
   for (const row of rows || []) {
@@ -7830,15 +7976,23 @@ function derivePlanOutcomeRows(rows) {
           ? expectedCpb / baselineCpb - 1
           : null;
       return {
+        key: getPlanOutcomeRowKey({
+          tier: agg.tier,
+          strategyLabel: agg.strategyLabel,
+          testingPoint: agg.testingPoint
+        }),
         tier: agg.tier,
         strategyLabel: agg.strategyLabel,
         testingPoint: agg.testingPoint,
         channelGroups: Array.from(agg.channelGroups).sort(),
+        channelGroupCount: agg.channelGroups.size,
         states: Array.from(agg.states).sort(),
+        stateCount: agg.states.size,
         expectedClicks,
         clicksUplift,
         expectedBinds,
         bindsUplift,
+        expectedSpend,
         expectedCpc,
         cpcUplift,
         expectedCpb,
@@ -7846,6 +8000,111 @@ function derivePlanOutcomeRows(rows) {
       };
     })
     .sort((a, b) => (a.tier - b.tier) || (a.testingPoint - b.testingPoint));
+}
+
+function renderPlanOutcomeKpis(rows) {
+  const outcomeRows = Array.isArray(rows) ? rows : [];
+  const allStates = new Set();
+  const allChannelGroups = new Set();
+  let totalExpectedClicks = 0;
+  let totalExpectedBinds = 0;
+  let totalExpectedSpend = 0;
+
+  for (const row of outcomeRows) {
+    for (const stateCode of row.states || []) {
+      allStates.add(stateCode);
+    }
+    for (const channelGroup of row.channelGroups || []) {
+      allChannelGroups.add(channelGroup);
+    }
+    totalExpectedClicks += Number(row.expectedClicks) || 0;
+    totalExpectedBinds += Number(row.expectedBinds) || 0;
+    totalExpectedSpend += Number(row.expectedSpend) || 0;
+  }
+
+  const weightedCpc = totalExpectedClicks > 0 ? totalExpectedSpend / totalExpectedClicks : null;
+  const weightedCpb = totalExpectedBinds > 0 ? totalExpectedSpend / totalExpectedBinds : null;
+  const kpiMap = {
+    planOutcomeKpiRows: formatInt(outcomeRows.length),
+    planOutcomeKpiStates: formatInt(allStates.size),
+    planOutcomeKpiChannels: formatInt(allChannelGroups.size),
+    planOutcomeKpiClicks: formatInt(totalExpectedClicks),
+    planOutcomeKpiBinds: formatDecimal(totalExpectedBinds, 1),
+    planOutcomeKpiCpc: formatCurrency(weightedCpc, 2),
+    planOutcomeKpiCpb: formatCurrency(weightedCpb, 2)
+  };
+
+  for (const [key, value] of Object.entries(kpiMap)) {
+    if (el[key]) {
+      el[key].textContent = value;
+    }
+  }
+}
+
+function updatePlanOutcomeSummaryStatus(rows) {
+  if (!el.planOutcomeSummaryStatus) {
+    return;
+  }
+  if (!rows.length) {
+    el.planOutcomeSummaryStatus.textContent = el.selectedPlanId?.value
+      ? "No outcome groups for the selected plan and date range."
+      : "Select a plan to load outcome groups.";
+    return;
+  }
+  const stateCount = new Set(rows.flatMap((row) => row.states || [])).size;
+  const channelCount = new Set(rows.flatMap((row) => row.channelGroups || [])).size;
+  el.planOutcomeSummaryStatus.textContent =
+    `${formatInt(rows.length)} groups across ${formatInt(stateCount)} states and ${formatInt(channelCount)} channel groups.`;
+}
+
+function renderPlanOutcomeSummaryList(rows) {
+  if (!el.planOutcomeSummaryList) {
+    return;
+  }
+  el.planOutcomeSummaryList.innerHTML = "";
+  if (!rows.length) {
+    const empty = document.createElement("p");
+    empty.className = "plan-outcome-summary-empty";
+    empty.textContent = "No outcome groups for the selected plan and date range.";
+    el.planOutcomeSummaryList.appendChild(empty);
+    return;
+  }
+
+  for (const row of rows) {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = `plan-outcome-summary-item${row.key === state.planOutcomeSelectedKey ? " active" : ""}`;
+
+    const title = document.createElement("h4");
+    title.textContent = `Tier ${row.tier} | ${row.strategyLabel} | ${formatTestingPointLabel(row.testingPoint)}`;
+    item.appendChild(title);
+
+    const meta = document.createElement("p");
+    meta.textContent =
+      `${formatInt(row.channelGroupCount)} channel groups, ${formatInt(row.stateCount)} states, ` +
+      `${formatInt(row.expectedClicks)} expected clicks, ${formatDecimal(row.expectedBinds, 1)} expected binds`;
+    item.appendChild(meta);
+
+    item.addEventListener("click", () => {
+      state.planOutcomeSelectedKey = row.key;
+      renderPlanOutcomeView();
+      const selectedRow = el.planOutcomeTableBody?.querySelector(`tr[data-plan-outcome-key="${CSS.escape(row.key)}"]`);
+      selectedRow?.scrollIntoView({ block: "nearest" });
+    });
+    el.planOutcomeSummaryList.appendChild(item);
+  }
+}
+
+function renderPlanOutcomeListCell(items) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "plan-outcome-list";
+  for (const item of items || []) {
+    const tag = document.createElement("span");
+    tag.className = "plan-outcome-tag";
+    tag.textContent = item;
+    wrapper.appendChild(tag);
+  }
+  return wrapper;
 }
 
 function renderPlanOutcomeRows(rows) {
@@ -7864,16 +8123,41 @@ function renderPlanOutcomeRows(rows) {
   }
   for (const row of rows) {
     const tr = document.createElement("tr");
-    const cells = [
-      `Tier ${row.tier} - ${row.strategyLabel} | ${formatTestingPointLabel(row.testingPoint)}`,
-      row.channelGroups.join(", "),
-      row.states.join(", "),
+    tr.dataset.planOutcomeKey = row.key;
+    tr.classList.toggle("is-selected", row.key === state.planOutcomeSelectedKey);
+    tr.addEventListener("click", () => {
+      state.planOutcomeSelectedKey = row.key;
+      renderPlanOutcomeView();
+    });
+
+    const summaryTd = document.createElement("td");
+    const summaryValue = document.createElement("div");
+    summaryValue.className = "plan-outcome-value";
+    summaryValue.textContent = `Tier ${row.tier} - ${row.strategyLabel}`;
+    const summaryMeta = document.createElement("div");
+    summaryMeta.className = "muted";
+    summaryMeta.textContent = `Recommended TP: ${formatTestingPointLabel(row.testingPoint)}`;
+    summaryTd.appendChild(summaryValue);
+    summaryTd.appendChild(summaryMeta);
+    tr.appendChild(summaryTd);
+
+    const channelTd = document.createElement("td");
+    channelTd.className = "plan-outcome-groups-cell";
+    channelTd.appendChild(renderPlanOutcomeListCell(row.channelGroups));
+    tr.appendChild(channelTd);
+
+    const statesTd = document.createElement("td");
+    statesTd.className = "plan-outcome-states-cell";
+    statesTd.appendChild(renderPlanOutcomeListCell(row.states));
+    tr.appendChild(statesTd);
+
+    const metricValues = [
       formatUpliftInCell(formatInt(row.expectedClicks), row.clicksUplift),
       formatUpliftInCell(formatDecimal(row.expectedBinds, 1), row.bindsUplift),
       formatUpliftInCell(formatCurrency(row.expectedCpc, 2), row.cpcUplift),
       formatUpliftInCell(formatCurrency(row.expectedCpb, 2), row.cpbUplift)
     ];
-    for (const value of cells) {
+    for (const value of metricValues) {
       const td = document.createElement("td");
       td.textContent = value;
       tr.appendChild(td);
@@ -7882,13 +8166,44 @@ function renderPlanOutcomeRows(rows) {
   }
 }
 
+function renderPlanOutcomeDetailHeader(rows) {
+  if (!el.planOutcomeDetailTitle || !el.planOutcomeDetailMeta) {
+    return;
+  }
+  if (!rows.length) {
+    el.planOutcomeDetailTitle.textContent = "Outcome Table";
+    el.planOutcomeDetailMeta.textContent = "Grouped by tier, strategy, and recommended testing point.";
+    return;
+  }
+  const selected =
+    rows.find((row) => row.key === state.planOutcomeSelectedKey) ||
+    rows[0];
+  el.planOutcomeDetailTitle.textContent =
+    `Outcome Table: Tier ${selected.tier} | ${selected.strategyLabel} | ${formatTestingPointLabel(selected.testingPoint)}`;
+  el.planOutcomeDetailMeta.textContent =
+    `${formatInt(selected.channelGroupCount)} channel groups and ${formatInt(selected.stateCount)} states in the selected group.`;
+}
+
+function renderPlanOutcomeView() {
+  const rows = Array.isArray(state.planOutcomeRows) ? state.planOutcomeRows : [];
+  if (!rows.some((row) => row.key === state.planOutcomeSelectedKey)) {
+    state.planOutcomeSelectedKey = rows[0]?.key || "";
+  }
+  renderPlanOutcomeKpis(rows);
+  updatePlanOutcomeSummaryStatus(rows);
+  renderPlanOutcomeSummaryList(rows);
+  renderPlanOutcomeDetailHeader(rows);
+  renderPlanOutcomeRows(rows);
+}
+
 async function refreshPlanOutcomeTable() {
   const loadingToken = startPanelLoading(el.planOutcomeLoading);
   try {
     const planId = String(el.selectedPlanId?.value || "").trim();
     if (!planId) {
       state.planOutcomeRows = [];
-      renderPlanOutcomeRows([]);
+      state.planOutcomeSelectedKey = "";
+      renderPlanOutcomeView();
       setStatus(el.planOutcomeStatus, "Select a plan to load outcome.");
       return;
     }
@@ -7897,11 +8212,13 @@ async function refreshPlanOutcomeTable() {
     const data = await api(`/api/analytics/price-exploration?${queryString}`, { timeoutMs: 120000 });
     const rows = Array.isArray(data.rows) ? data.rows : [];
     state.planOutcomeRows = derivePlanOutcomeRows(rows);
-    renderPlanOutcomeRows(state.planOutcomeRows);
+    state.planOutcomeSelectedKey = state.planOutcomeRows[0]?.key || "";
+    renderPlanOutcomeView();
     setStatus(el.planOutcomeStatus, `Loaded ${state.planOutcomeRows.length} outcome row(s).`);
   } catch (err) {
     state.planOutcomeRows = [];
-    renderPlanOutcomeRows([]);
+    state.planOutcomeSelectedKey = "";
+    renderPlanOutcomeView();
     setStatus(el.planOutcomeStatus, err.message || "Failed loading plan outcome.", true);
   } finally {
     stopPanelLoading(el.planOutcomeLoading, loadingToken);
@@ -8368,6 +8685,9 @@ el.runPlan.addEventListener("click", async () => {
 for (const item of el.menuItems) {
   item.addEventListener("click", () => {
     setActiveSection(item.dataset.section);
+    if (isAuthenticated()) {
+      void withMainContentLoading(loadActiveViewData);
+    }
   });
 }
 
@@ -8399,22 +8719,16 @@ document.addEventListener("click", (event) => {
 el.planTabBuilder.addEventListener("click", () => {
   setActiveSection("plan");
   setActivePlanTab("builder");
+  if (isAuthenticated()) {
+    void withMainContentLoading(loadActiveViewData);
+  }
 });
 
 el.planTabTargets.addEventListener("click", async () => {
   setActiveSection("plan");
   setActivePlanTab("targets");
-  const targetsRange = getTargetsDefaultRange();
-  applyDateRange("targets", targetsRange.startIso, targetsRange.endIso, { trigger: false });
-  await refreshDerivedTargetOptions();
-  try {
-    await loadPlanContextForSelectedPlan();
-    applyPlanAndTargetDefaultsToInputs();
-    await loadTargetsSharedConfigForSelectedPlan();
-    await ensureTargetsDefaultLoaded();
-    await refreshTargetsFileMode();
-  } catch (err) {
-    setStatus(el.targetsStatus, err.message || "Failed to load targets default file.", true);
+  if (isAuthenticated()) {
+    await withMainContentLoading(loadActiveViewData);
   }
 });
 
@@ -8422,15 +8736,9 @@ if (el.planTabStrategy) {
   el.planTabStrategy.addEventListener("click", async () => {
     setActiveSection("plan");
     setActivePlanTab("strategy");
-    const targetsRange = getTargetsDefaultRange();
-    applyDateRange("targets", targetsRange.startIso, targetsRange.endIso, { trigger: false });
-    try {
-      await ensureSelectedPlanId();
-    } catch (_err) {
-      // No-op: load handler below will show relevant status.
+    if (isAuthenticated()) {
+      await withMainContentLoading(loadActiveViewData);
     }
-    await refreshPlanStrategyOptions();
-    await loadPlanStrategyForSelectedPlan();
   });
 }
 
@@ -8438,13 +8746,8 @@ if (el.planTabPriceDecision) {
   el.planTabPriceDecision.addEventListener("click", async () => {
     setActiveSection("plan");
     setActivePlanTab("price-decision");
-    const priceRange = getPlanPriceExplorationRange();
-    applyDateRange("priceDecision", priceRange.startIso, priceRange.endIso, { trigger: false });
     if (isAuthenticated()) {
-      await loadPlanStrategyForSelectedPlan();
-      await loadPriceDecisionOverridesForSelectedPlan();
-      await refreshPriceDecisionFilters();
-      resetPriceDecisionResults("Filters are ready. Click Apply Filters.");
+      await withMainContentLoading(loadActiveViewData);
     }
   });
 }
@@ -8454,8 +8757,7 @@ if (el.planTabOutcome) {
     setActiveSection("plan");
     setActivePlanTab("outcome");
     if (isAuthenticated()) {
-      await loadPlanStrategyForSelectedPlan();
-      await refreshPlanOutcomeTable();
+      await withMainContentLoading(loadActiveViewData);
     }
   });
 }
@@ -8463,53 +8765,41 @@ if (el.planTabOutcome) {
 el.analyticsTabStateSegment.addEventListener("click", async () => {
   setActiveSection("analytics");
   setActiveAnalyticsTab("state-segment");
-  const perfRange = getPlanPerformanceRange();
-  applySharedPerformanceDateRange(perfRange.startIso, perfRange.endIso);
   if (isAuthenticated()) {
-    await refreshAnalyticsFilters();
-    await refreshStateSegmentTable();
+    await withMainContentLoading(loadActiveViewData);
   }
 });
 el.analyticsTabPriceExploration.addEventListener("click", async () => {
   setActiveSection("analytics");
   setActiveAnalyticsTab("price-exploration");
-  const priceRange = getPlanPriceExplorationRange();
-  applySharedPriceExplorationDateRange(priceRange.startIso, priceRange.endIso);
   if (isAuthenticated()) {
-    await refreshPriceExplorationFilters();
-    resetPriceExplorationResults();
+    await withMainContentLoading(loadActiveViewData);
   }
 });
 if (el.analyticsTabStrategyAnalysis) {
   el.analyticsTabStrategyAnalysis.addEventListener("click", async () => {
     setActiveSection("analytics");
     setActiveAnalyticsTab("strategy-analysis");
-    const perfRange = getPlanPerformanceRange();
-    applySharedPerformanceDateRange(perfRange.startIso, perfRange.endIso);
     if (isAuthenticated()) {
-      await refreshStrategyAnalysisTable();
+      await withMainContentLoading(loadActiveViewData);
     }
   });
 }
 if (el.analyticsTabPlansComparison) {
-  el.analyticsTabPlansComparison.addEventListener("click", () => {
+  el.analyticsTabPlansComparison.addEventListener("click", async () => {
     setActiveSection("analytics");
     setActiveAnalyticsTab("plans-comparison");
-    const perfRange = getPlanPerformanceRange();
-    applyDateRange("plansComparison", perfRange.startIso, perfRange.endIso, { trigger: false });
-    applyPlansComparisonModeUi();
-    renderPlansComparisonPlanOptions();
-    setStatus(el.plansComparisonStatus, "Filters are ready. Click Apply Filters.");
+    if (isAuthenticated()) {
+      await withMainContentLoading(loadActiveViewData);
+    }
   });
 }
 if (el.analyticsTabStateAnalysis) {
   el.analyticsTabStateAnalysis.addEventListener("click", async () => {
     setActiveSection("analytics");
     setActiveAnalyticsTab("state-analysis");
-    const perfRange = getPlanPerformanceRange();
-    applySharedPerformanceDateRange(perfRange.startIso, perfRange.endIso);
     if (isAuthenticated()) {
-      await refreshStateAnalysis();
+      await withMainContentLoading(loadActiveViewData);
     }
   });
 }
@@ -8517,10 +8807,8 @@ if (el.analyticsTabStatePlanAnalysis) {
   el.analyticsTabStatePlanAnalysis.addEventListener("click", async () => {
     setActiveSection("analytics");
     setActiveAnalyticsTab("state-plan-analysis");
-    const perfRange = getPlanPerformanceRange();
-    applySharedPerformanceDateRange(perfRange.startIso, perfRange.endIso);
     if (isAuthenticated()) {
-      await refreshStatePlanAnalysis();
+      await withMainContentLoading(loadActiveViewData);
     }
   });
 }
@@ -8530,8 +8818,7 @@ if (el.settingsSubGlobalFilters) {
     setActiveSection("settings");
     setActiveSettingsTab("global-filters");
     if (isAuthenticated()) {
-      await loadDefaultTargetsFilesByScopeForSelectedPlan();
-      renderSettingsGlobalFiltersTable();
+      await withMainContentLoading(loadActiveViewData);
     }
   });
 }
@@ -8539,7 +8826,9 @@ if (el.settingsSubGlobalFilters) {
 el.settingsSubUsers.addEventListener("click", async () => {
   setActiveSection("settings");
   setActiveSettingsTab("users");
-  await refreshManagedUsers();
+  if (isAuthenticated()) {
+    await withMainContentLoading(loadActiveViewData);
+  }
 });
 
 initializeDateRangePicker({
@@ -8824,46 +9113,11 @@ el.activityLeadTypeFilter.addEventListener("change", async () => {
     return;
   }
 
-  await loadPlanContextForSelectedPlan();
-  applyPlanAndTargetDefaultsToInputs();
-
-  await refreshAnalyticsFilters();
-  await refreshStateSegmentTable();
-  await refreshPriceExplorationFilters();
-  resetPriceExplorationResults();
-  await refreshPriceDecisionFilters();
-  resetPriceDecisionResults();
-  if (state.activeSection === "analytics" && state.activeAnalyticsTab === "strategy-analysis") {
-    await refreshStrategyAnalysisTable();
-  }
-  if (state.activeSection === "analytics" && state.activeAnalyticsTab === "state-analysis") {
-    await refreshStateAnalysis();
-  }
-  if (state.activeSection === "analytics" && state.activeAnalyticsTab === "state-plan-analysis") {
-    await refreshStatePlanAnalysis();
-  }
-  if (state.activeSection === "plan" && state.activePlanTab === "targets") {
-    await loadTargetsSharedConfigForSelectedPlan();
-    await refreshDerivedTargetOptions();
-    await refreshTargetsCurrentMode();
-  }
-  if (state.activeSection === "plan" && state.activePlanTab === "strategy") {
-    await refreshPlanStrategyOptions();
-    await loadPlanStrategyForSelectedPlan();
-  }
-  if (state.activeSection === "plan" && state.activePlanTab === "price-decision") {
-    await loadPriceDecisionOverridesForSelectedPlan();
-    await refreshPriceDecisionFilters();
-    resetPriceDecisionResults("Filters are ready. Click Apply Filters.");
-  }
-  if (state.activeSection === "plan" && state.activePlanTab === "outcome") {
-    await loadPlanStrategyForSelectedPlan();
-    await refreshPlanOutcomeTable();
-  }
-  if (state.activeSection === "settings" && state.activeSettingsTab === "global-filters") {
-    await loadDefaultTargetsFilesByScopeForSelectedPlan();
-    renderSettingsGlobalFiltersTable();
-  }
+  await withMainContentLoading(async () => {
+    await loadPlanContextForSelectedPlan();
+    applyPlanAndTargetDefaultsToInputs();
+    await loadActiveViewData();
+  });
 });
 
 if (el.selectedPlanId) {
@@ -8877,45 +9131,12 @@ if (el.selectedPlanId) {
     } else {
       clearStoredSelectedPlanId();
     }
-    if (state.activeSection === "plan" && state.activePlanTab === "strategy") {
-      await loadPlanStrategyForSelectedPlan();
-    }
-    if (state.activeSection === "plan" && state.activePlanTab === "targets") {
+    await withMainContentLoading(async () => {
+      renderPlansComparisonPlanOptions();
       await loadPlanContextForSelectedPlan();
-      await loadTargetsSharedConfigForSelectedPlan();
-      await refreshTargetsCurrentMode();
-    }
-    renderPlansComparisonPlanOptions();
-    await loadPlanContextForSelectedPlan();
-    applyPlanAndTargetDefaultsToInputs();
-    await refreshAnalyticsFilters();
-    if (state.activeSection === "analytics" && state.activeAnalyticsTab === "state-segment") {
-      await refreshStateSegmentTable();
-    }
-    await refreshPriceExplorationFilters();
-    resetPriceExplorationResults();
-    await refreshPriceDecisionFilters();
-    resetPriceDecisionResults("Filters are ready. Click Apply Filters.");
-    if (state.activeSection === "plan" && state.activePlanTab === "price-decision") {
-      await loadPriceDecisionOverridesForSelectedPlan();
-      await refreshPriceDecisionTable();
-    }
-    if (state.activeSection === "plan" && state.activePlanTab === "outcome") {
-      await loadPlanStrategyForSelectedPlan();
-      await refreshPlanOutcomeTable();
-    }
-    if (state.activeSection === "analytics" && state.activeAnalyticsTab === "strategy-analysis") {
-      await refreshStrategyAnalysisTable();
-    }
-    if (state.activeSection === "analytics" && state.activeAnalyticsTab === "plans-comparison") {
-      setStatus(el.plansComparisonStatus, "Plan changed. Click Apply Filters.");
-    }
-    if (state.activeSection === "analytics" && state.activeAnalyticsTab === "state-analysis") {
-      await refreshStateAnalysis();
-    }
-    if (state.activeSection === "analytics" && state.activeAnalyticsTab === "state-plan-analysis") {
-      await refreshStatePlanAnalysis();
-    }
+      applyPlanAndTargetDefaultsToInputs();
+      await loadActiveViewData();
+    });
   });
 }
 
@@ -8941,16 +9162,14 @@ if (el.savePlanStrategyBtn) {
 }
 
 async function loadAppDataAfterLogin() {
-  const loadingToken = startMainContentLoading();
   setStatus(el.meStatus, "Loading account and data...");
   try {
     await checkMe();
   } catch (_err) {
-    stopMainContentLoading(loadingToken);
     return;
   }
 
-  try {
+  await withMainContentLoading(async () => {
     try {
       await ensureSelectedPlanId();
       await loadPlanContextForSelectedPlan();
@@ -8958,63 +9177,8 @@ async function loadAppDataAfterLogin() {
     } catch (_err) {
       // Fall back to cached/default settings.
     }
-
-    await refreshPlans();
-    renderSettingsGlobalFiltersTable();
-
-    if (state.activeSection === "analytics") {
-      if (state.activeAnalyticsTab === "state-segment") {
-        await refreshAnalyticsFilters();
-        await refreshStateSegmentTable();
-      } else if (state.activeAnalyticsTab === "price-exploration") {
-        await refreshPriceExplorationFilters();
-        resetPriceExplorationResults("Filters are ready. Click Apply Filters to load price exploration data.");
-      } else if (state.activeAnalyticsTab === "strategy-analysis") {
-        await refreshStrategyAnalysisTable();
-      } else if (state.activeAnalyticsTab === "plans-comparison") {
-        applyPlansComparisonModeUi();
-        renderPlansComparisonPlanOptions();
-        setStatus(el.plansComparisonStatus, "Filters are ready. Click Apply Filters.");
-      } else if (state.activeAnalyticsTab === "state-analysis") {
-        await refreshStateAnalysis();
-      } else if (state.activeAnalyticsTab === "state-plan-analysis") {
-        await refreshStatePlanAnalysis();
-      }
-    }
-
-    if (state.activeSection === "plan") {
-      if (state.activePlanTab === "targets") {
-        try {
-          await loadTargetsSharedConfigForSelectedPlan();
-          await refreshDerivedTargetOptions();
-          await ensureTargetsDefaultLoaded();
-          await refreshTargetsFileMode();
-        } catch (err) {
-          setStatus(el.targetsStatus, err.message || "Failed to load targets default file.", true);
-        }
-      } else if (state.activePlanTab === "strategy") {
-        try {
-          await ensureSelectedPlanId();
-        } catch (_err) {
-          // Keep going and let strategy loader show status.
-        }
-        await refreshPlanStrategyOptions();
-        await loadPlanStrategyForSelectedPlan();
-      } else if (state.activePlanTab === "price-decision") {
-        await refreshPriceDecisionFilters();
-        resetPriceDecisionResults("Filters are ready. Click Apply Filters.");
-      } else if (state.activePlanTab === "outcome") {
-        await loadPlanStrategyForSelectedPlan();
-        await refreshPlanOutcomeTable();
-      }
-    }
-
-    if (state.activeSection === "settings" && state.activeSettingsTab === "users") {
-      await refreshManagedUsers();
-    }
-  } finally {
-    stopMainContentLoading(loadingToken);
-  }
+    await loadActiveViewData();
+  });
 
   void (async () => {
     try {

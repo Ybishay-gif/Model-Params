@@ -103,7 +103,7 @@
   - `https://beaconlab.kissterralab.workers.dev/`
   - This is the default deployment/validation URL for future chats in this repo.
   - Proxies to Cloud Run origin via `x-proxy-target` response header
-  - Current prod Cloud Run revision: `planning-app-api-00099-2zl` (deployed 2026-03-06)
+  - Current prod Cloud Run revision: `planning-app-api-00103-8km` (deployed 2026-03-06)
 - Test Cloud Run service (isolated mutable dataset):
   - `https://planning-app-api-dev-758008223769.us-central1.run.app`
   - Runtime env points to:
@@ -111,7 +111,7 @@
     - `BQ_ANALYTICS_DATASET=planning_app`
   - This is the required endpoint for all testing/QA/automation runs.
   - Production endpoint must not be used for tests.
-  - Current test Cloud Run revision: `planning-app-api-dev-00022-cvx` (deployed 2026-03-06)
+  - Current test Cloud Run revision: `planning-app-api-dev-00025-w9h` (deployed 2026-03-06)
 
 ## Known Constraints / Risks
 - Chat sessions are stateless; context must come from repo docs (`AGENTS.md`, `RUNBOOK.md`, this file).
