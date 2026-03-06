@@ -4,7 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Planning App</title>
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+    <link rel="stylesheet" href="/styles.css?v=20260306-04" />
   </head>
   <body>
     <div id="loginScreen" class="auth-screen">
@@ -48,8 +49,24 @@
 
     <main id="appLayout" class="app-layout" hidden>
       <aside class="sidebar">
-        <h1>BeaconLM</h1>
+        <div class="sidebar-controls">
+          <button id="sidebarToggleBtn" class="sidebar-control-btn" type="button" title="Collapse sidebar" aria-label="Collapse sidebar">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <button id="sidebarPinBtn" class="sidebar-control-btn active" type="button" title="Pinned sidebar" aria-label="Pinned sidebar">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M8 4h8l-1 5 3 3v2H6v-2l3-3-1-5zM12 14v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+        <h1>Beacon Lab</h1>
         <div class="global-filter">
+          <label for="planSelector">Plan</label>
+          <select id="planSelector">
+            <option value="">Select plan</option>
+          </select>
           <label for="activityLeadTypeFilter">Activity + Lead Type</label>
           <select id="activityLeadTypeFilter">
             <option value="all">All</option>
@@ -87,6 +104,18 @@
               </span>
               <span>Plan Strategy</span>
             </button>
+            <button id="planTabPriceDecision" class="menu-subitem" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 17l5-5 4 3 7-8M17 7h3v3M4 20h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              <span>Price Exploration Decisions</span>
+            </button>
+            <button id="planTabOutcome" class="menu-subitem" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 18h16M7 18V9m5 9V6m5 12v-4M4 6h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              <span>Plan Outcome</span>
+            </button>
           </div>
 
           <button class="menu-item" data-section="analytics" id="analyticsSectionBtn">
@@ -115,6 +144,24 @@
               </span>
               <span>Strategy Analysis</span>
             </button>
+            <button id="analyticsTabPlansComparison" class="menu-subitem" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h8M4 18h16M14 12h6M16 9l4 3-4 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              <span>Plans Comparison</span>
+            </button>
+            <button id="analyticsTabStateAnalysis" class="menu-subitem" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16v14H4zM8 9h8M8 13h4M17 17l3 3M20 14a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              <span>State Analysis</span>
+            </button>
+            <button id="analyticsTabStatePlanAnalysis" class="menu-subitem" type="button">
+              <span class="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16v14H4zM7 9h10M7 13h6M9 19l2-2 2 2 3-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              <span>State Plan Analysis</span>
+            </button>
           </div>
 
           <button class="menu-item" data-section="settings">
@@ -124,11 +171,11 @@
             <span>Settings</span>
           </button>
           <div class="menu-submenu" id="settingsMenuSubmenu">
-            <button id="settingsSubConfig" class="menu-subitem active" type="button">
+            <button id="settingsSubGlobalFilters" class="menu-subitem active" type="button">
               <span class="menu-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none"><path d="M5 5h14v4H5zM5 10h14v9H5zM8 13h8M8 16h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </span>
-              <span>Configuration</span>
+              <span>Default Targets</span>
             </button>
             <button id="settingsSubUsers" class="menu-subitem" type="button">
               <span class="menu-icon" aria-hidden="true">
@@ -141,32 +188,60 @@
       </aside>
 
       <section class="content">
+        <div id="mainLoadingOverlay" class="main-loading-overlay" hidden aria-live="polite" aria-busy="true">
+          <span class="spinner" aria-hidden="true"></span>
+        </div>
         <div class="section-content active" data-section-panel="plan">
           <div id="planBuilderPanel" class="tab-panel active">
             <section class="card">
-              <h2>Create Plan</h2>
-              <label for="planName">Plan Name</label>
-              <input id="planName" type="text" placeholder="Q2 Growth Plan" />
-              <label for="planDesc">Description</label>
-              <input id="planDesc" type="text" placeholder="Optional" />
-              <button id="createPlan">Create Plan</button>
-              <p id="createStatus" class="muted"></p>
+              <div class="analytics-toolbar">
+                <h2>Plans</h2>
+                <div class="analytics-date-inline">
+                  <button
+                    id="addPlanRowBtn"
+                    class="icon-square-btn"
+                    type="button"
+                    title="Add Plan"
+                    aria-label="Add Plan"
+                  >
+                    +
+                  </button>
+                  <button id="refreshPlans">Refresh</button>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table id="plansTable">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Description</th>
+                      <th>Rules</th>
+                      <th>Performance Date Range</th>
+                      <th>Price Exploration Date Range</th>
+                      <th>QBC Clicks</th>
+                      <th>QBC Leads/Calls</th>
+                      <th>Created</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="plansTableBody"></tbody>
+                </table>
+              </div>
+              <p id="plansTableStatus" class="muted"></p>
             </section>
 
-            <section class="card">
-              <h2>Plans</h2>
-              <button id="refreshPlans">Refresh</button>
-              <ul id="plansList"></ul>
-            </section>
-
-            <section class="card">
-              <h2>Plan Actions</h2>
-              <label for="selectedPlanId">Plan ID</label>
-              <input id="selectedPlanId" type="text" placeholder="Paste plan_id" />
-
-              <h3>Set Parameter</h3>
-              <input id="paramKey" type="text" placeholder="target_budget" />
-              <input id="paramValue" type="text" placeholder="100000" />
+            <section class="card" hidden aria-hidden="true">
+              <input id="selectedPlanId" type="hidden" />
+              <input id="planName" type="text" />
+              <input id="planDesc" type="text" />
+              <button id="createPlan" type="button">Create</button>
+              <div id="plansList"></div>
+              <div id="planPerformanceDateControlMount"></div>
+              <div id="planPriceDateControlMount"></div>
+              <button id="savePlanDateRanges" type="button">Save Plan Date Ranges</button>
+              <p id="planDateRangesStatus"></p>
+              <input id="paramKey" type="text" />
+              <input id="paramValue" type="text" />
               <select id="paramType">
                 <option value="int">int</option>
                 <option value="float">float</option>
@@ -174,36 +249,26 @@
                 <option value="string">string</option>
                 <option value="json">json</option>
               </select>
-              <button id="saveParameter">Save Parameter</button>
-
-              <h3>Add Decision</h3>
-              <input id="decisionType" type="text" placeholder="bid_adjustment" />
-              <input id="decisionValue" type="text" placeholder="0.1" />
-              <input id="decisionState" type="text" placeholder="state (optional)" />
-              <input id="decisionChannel" type="text" placeholder="channel (optional)" />
-              <button id="addDecision">Add Decision</button>
-
-              <h3>Run</h3>
-              <button id="runPlan">Trigger Run</button>
-
-              <p id="actionStatus" class="muted"></p>
+              <button id="saveParameter" type="button">Save Parameter</button>
+              <input id="decisionType" type="text" />
+              <input id="decisionValue" type="text" />
+              <input id="decisionState" type="text" />
+              <input id="decisionChannel" type="text" />
+              <button id="addDecision" type="button">Add Decision</button>
+              <button id="runPlan" type="button">Run</button>
+              <p id="actionStatus"></p>
             </section>
           </div>
 
           <div id="targetsPanel" class="tab-panel">
             <section class="card">
-              <h2>Targets</h2>
-              <div class="filters-grid">
-                <div>
-                  <label for="targetsStartDate">Start Date</label>
-                  <input id="targetsStartDate" type="date" />
-                </div>
-                <div>
-                  <label for="targetsEndDate">End Date</label>
-                  <input id="targetsEndDate" type="date" />
+              <div class="analytics-toolbar">
+                <h2 class="analytics-page-title">Targets</h2>
+                <div class="analytics-date-inline">
+                  <div id="targetsDateControlMount" class="date-range-control-mount"></div>
                 </div>
               </div>
-              <div class="action-row targets-actions">
+              <div class="targets-toolbar-source" hidden>
                 <button id="uploadTargetsFile" type="button">Upload Target File</button>
                 <button id="downloadTargetsFile" type="button">Download Updated File</button>
                 <input id="targetsFileInput" type="file" accept=".xlsx,.xls,.csv" hidden />
@@ -214,6 +279,7 @@
                 <button id="targetsModeCpb" class="toggle-pill active" type="button">CPB Targets</button>
                 <button id="targetsModeRoe" class="toggle-pill" type="button">ROE Targets</button>
                 <button id="targetsModeCor" class="toggle-pill" type="button">COR Targets</button>
+                <button id="adjustDerivedTargetBtn" type="button" hidden>Adjust CPB Target</button>
               </div>
 
               <section id="derivedTargetPanel" class="derived-target-panel" hidden>
@@ -221,7 +287,6 @@
                 <div class="action-row targets-rule-actions">
                   <button id="addDerivedTargetRule" class="icon-square-btn" type="button" title="Add Rule" aria-label="Add Rule">+</button>
                   <button id="downloadDerivedTargetsFile" type="button">Download Targets</button>
-                  <button id="adjustDerivedTargetBtn" type="button">Adjust CPB Target</button>
                 </div>
                 <div class="table-wrap">
                   <table id="derivedTargetRulesTable">
@@ -318,6 +383,7 @@
                         <th>Segments</th>
                         <th>Max CPC Uplift (%)</th>
                         <th>Max CPB Uplift (%)</th>
+                        <th>COR Target (%)</th>
                         <th>Growth Strategy</th>
                       </tr>
                     </thead>
@@ -331,21 +397,160 @@
               </section>
             </section>
           </div>
+
+          <div id="priceDecisionPanel" class="tab-panel">
+            <section class="card">
+              <div class="analytics-toolbar">
+                <h2 class="analytics-page-title">Price Exploration Decisions</h2>
+                <div class="analytics-date-inline">
+                  <div id="priceDecisionDateControlMount" class="date-range-control-mount"></div>
+                </div>
+              </div>
+              <div class="filters-grid price-decision-filter-row">
+                <div>
+                  <label>Filter by State (multi-select)</label>
+                  <div class="multi-dropdown">
+                    <button id="priceDecisionStatesFilterToggle" class="dropdown-toggle" type="button">All states</button>
+                    <div id="priceDecisionStatesFilterMenu" class="dropdown-menu"></div>
+                  </div>
+                </div>
+                <div>
+                  <label>Filter by Channel Group (multi-select)</label>
+                  <div class="multi-dropdown">
+                    <button id="priceDecisionChannelsFilterToggle" class="dropdown-toggle" type="button">
+                      All channel groups
+                    </button>
+                    <div id="priceDecisionChannelsFilterMenu" class="dropdown-menu"></div>
+                  </div>
+                </div>
+                <div>
+                  <label>Filter by Segment (multi-select)</label>
+                  <div class="multi-dropdown">
+                    <button id="priceDecisionSegmentsFilterToggle" class="dropdown-toggle" type="button">All segments</button>
+                    <div id="priceDecisionSegmentsFilterMenu" class="dropdown-menu"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="action-row analytics-actions">
+                <button id="applyPriceDecisionFilters" class="compact-btn" type="button">Apply Filters</button>
+                <button id="clearPriceDecisionFilters" class="compact-btn secondary-btn" type="button">Clear Filters</button>
+              </div>
+              <div id="priceDecisionLoading" class="panel-loading" hidden>
+                <span class="spinner"></span>
+                <span>Loading data...</span>
+              </div>
+              <p id="priceDecisionStatus" class="muted"></p>
+
+              <section class="price-decision-layout">
+                <aside class="price-decision-cards-wrap">
+                  <h3>State &amp; Channel Pairs</h3>
+                  <div id="priceDecisionCards" class="price-decision-cards"></div>
+                </aside>
+
+                <div class="price-decision-detail">
+                  <section class="state-rule-card pd-top-detail">
+                    <div class="pd-top-row">
+                      <div class="pd-top-text">
+                        <h3 id="priceDecisionDetailTitle">Select a state and channel pair</h3>
+                        <p id="priceDecisionDetailRule" class="muted">Strategy Rule: -</p>
+                        <p id="priceDecisionDetailEvidence" class="muted">Recommended testing point and evidence will appear here.</p>
+                      </div>
+                      <div class="pd-top-select">
+                        <label for="priceDecisionTestingPointSelect">Bid Adjustment (Manual Override)</label>
+                        <select id="priceDecisionTestingPointSelect"></select>
+                      </div>
+                    </div>
+                  </section>
+
+                  <div class="kpi-grid">
+                    <article class="kpi-card"><h3>Bids</h3><p id="priceDecisionKpiBids">-</p></article>
+                    <article class="kpi-card"><h3>Sold</h3><p id="priceDecisionKpiSold">-</p></article>
+                    <article class="kpi-card"><h3>Binds</h3><p id="priceDecisionKpiBinds">-</p></article>
+                    <article class="kpi-card"><h3>ROE</h3><p id="priceDecisionKpiRoe">-</p></article>
+                    <article class="kpi-card"><h3>COR</h3><p id="priceDecisionKpiCor">-</p></article>
+                    <article class="kpi-card"><h3>WR Uplift</h3><p id="priceDecisionKpiWrUplift">-</p></article>
+                    <article class="kpi-card"><h3>CPC Uplift</h3><p id="priceDecisionKpiCpcUplift">-</p></article>
+                    <article class="kpi-card"><h3>CPB Uplift</h3><p id="priceDecisionKpiCpbUplift">-</p></article>
+                    <article class="kpi-card"><h3>Additional Clicks</h3><p id="priceDecisionKpiAdditionalClicks">-</p></article>
+                    <article class="kpi-card"><h3>Additional Binds</h3><p id="priceDecisionKpiAdditionalBinds">-</p></article>
+                    <article class="kpi-card"><h3>Additional Budget</h3><p id="priceDecisionKpiAdditionalBudget">-</p></article>
+                  </div>
+
+                  <section class="state-rule-card">
+                    <h3>Testing Point Impact: Win-Rate vs CPC vs CPB</h3>
+                    <div id="priceDecisionImpactChart" class="pd-impact-chart"></div>
+                  </section>
+
+                  <section class="state-rule-card">
+                    <h3>Testing Point Table</h3>
+                    <div class="table-wrap">
+                      <table id="priceDecisionTable">
+                        <thead>
+                          <tr>
+                            <th>Testing Point</th>
+                            <th>Bids</th>
+                            <th>Sold</th>
+                            <th>Binds</th>
+                            <th>WR</th>
+                            <th>CPC</th>
+                            <th>Current CPB</th>
+                            <th>Expected CPB</th>
+                            <th>WR Uplift</th>
+                            <th>CPC Uplift</th>
+                            <th>CPB Uplift</th>
+                            <th>Additional Clicks</th>
+                            <th>Additional Binds</th>
+                            <th>Additional Budget</th>
+                            <th>Stat-Sig</th>
+                            <th>Evidence</th>
+                          </tr>
+                        </thead>
+                        <tbody id="priceDecisionTableBody"></tbody>
+                      </table>
+                    </div>
+                  </section>
+                </div>
+              </section>
+            </section>
+          </div>
+
+          <div id="planOutcomePanel" class="tab-panel">
+            <section class="card">
+              <div class="analytics-toolbar">
+                <h2 class="analytics-page-title">Plan Outcome</h2>
+              </div>
+              <div id="planOutcomeLoading" class="panel-loading" hidden>
+                <span class="spinner"></span>
+                <span>Loading data...</span>
+              </div>
+              <p id="planOutcomeStatus" class="muted"></p>
+              <div class="table-wrap">
+                <table id="planOutcomeTable">
+                  <thead>
+                    <tr>
+                      <th>Tier &amp; Recommended TP</th>
+                      <th>Channel Groups</th>
+                      <th>States</th>
+                      <th>Expected Clicks</th>
+                      <th>Expected Binds</th>
+                      <th>Expected CPC</th>
+                      <th>Expected CPB</th>
+                    </tr>
+                  </thead>
+                  <tbody id="planOutcomeTableBody"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
         </div>
 
         <div class="section-content" data-section-panel="analytics">
           <section class="card">
-            <h2>Analytics</h2>
-
             <div id="stateSegmentPanel" class="tab-panel active">
-              <div class="filters-grid analytics-date-row">
-                <div>
-                  <label for="startDate">Start Date</label>
-                  <input id="startDate" class="compact-date" type="date" />
-                </div>
-                <div>
-                  <label for="endDate">End Date</label>
-                  <input id="endDate" class="compact-date" type="date" />
+              <div class="analytics-toolbar">
+                <h2 class="analytics-page-title">State &amp; Channel Performance</h2>
+                <div class="analytics-date-inline">
+                  <div id="stateSegmentDateControlMount" class="date-range-control-mount"></div>
                 </div>
               </div>
               <div class="filters-grid analytics-filter-row">
@@ -388,16 +593,10 @@
               <div class="action-row analytics-actions">
                 <button id="applyAnalyticsFilters" class="compact-btn" type="button">Apply Filters</button>
                 <button id="clearAnalyticsFilters" class="compact-btn secondary-btn" type="button">Clear Filters</button>
-                <button id="exportStateSegmentExcel" class="compact-btn export-btn" type="button">
-                  <span class="btn-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none">
-                      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
-                      <path d="M14 3v5h5" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
-                      <path d="M9 13l6 6M15 13l-6 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-                    </svg>
-                  </span>
-                  <span>Export to Excel</span>
-                </button>
+              </div>
+              <div id="stateSegmentLoading" class="panel-loading" hidden>
+                <span class="spinner"></span>
+                <span>Loading data...</span>
               </div>
               <p id="analyticsStatus" class="muted"></p>
               <div class="table-wrap">
@@ -419,7 +618,7 @@
                       <th data-sort-key="target_cpb" class="sortable">Target CPB</th>
                       <th data-sort-key="performance" class="sortable">Performance</th>
                       <th data-sort-key="roe" class="sortable">ROE</th>
-                      <th data-sort-key="combined_ratio" class="sortable">Combine Ratio</th>
+                      <th data-sort-key="combined_ratio" class="sortable">Combined Ratio</th>
                       <th data-sort-key="mrltv" class="sortable">MRLTV</th>
                       <th data-sort-key="profit" class="sortable">Profit</th>
                       <th data-sort-key="equity" class="sortable">Equity</th>
@@ -431,15 +630,13 @@
             </div>
 
             <div id="priceExplorationPanel" class="tab-panel">
-              <div class="filters-grid">
-                <div>
-                  <label for="priceStartDate">Start Date</label>
-                  <input id="priceStartDate" class="compact-date" type="date" />
+              <div class="analytics-toolbar">
+                <h2 class="analytics-page-title">Price Exploration</h2>
+                <div class="analytics-date-inline">
+                  <div id="priceDateControlMount" class="date-range-control-mount"></div>
                 </div>
-                <div>
-                  <label for="priceEndDate">End Date</label>
-                  <input id="priceEndDate" class="compact-date" type="date" />
-                </div>
+              </div>
+              <div class="filters-grid filters-compact">
                 <div>
                   <label>Filter by State (multi-select)</label>
                   <div class="multi-dropdown">
@@ -460,21 +657,30 @@
                 <button id="clearPriceExplorationFilters" class="compact-btn secondary-btn" type="button">
                   Clear Filters
                 </button>
+                <label class="inline-checkbox" for="showOnlyRecommendedTp">
+                  <input id="showOnlyRecommendedTp" type="checkbox" />
+                  <span>Show only recommended testing point</span>
+                </label>
+              </div>
+              <div id="priceExplorationLoading" class="panel-loading" hidden>
+                <span class="spinner"></span>
+                <span>Loading data...</span>
               </div>
               <p id="priceExplorationStatus" class="muted"></p>
 
               <div class="kpi-grid">
-                <article class="kpi-card"><h3>Opps</h3><p id="kpiOpps">-</p></article>
                 <article class="kpi-card"><h3>Bids</h3><p id="kpiBids">-</p></article>
                 <article class="kpi-card"><h3>Win Rate</h3><p id="kpiWinRate">-</p></article>
                 <article class="kpi-card"><h3>Sold</h3><p id="kpiSold">-</p></article>
                 <article class="kpi-card"><h3>CPC</h3><p id="kpiCpc">-</p></article>
                 <article class="kpi-card"><h3>Avg Bid</h3><p id="kpiAvgBid">-</p></article>
+              </div>
+              <div class="kpi-grid">
                 <article class="kpi-card"><h3>Win Rate Uplift</h3><p id="kpiWinRateUplift">-</p></article>
                 <article class="kpi-card"><h3>CPC Uplift</h3><p id="kpiCpcUplift">-</p></article>
                 <article class="kpi-card"><h3>Additional Clicks</h3><p id="kpiAdditionalClicks">-</p></article>
                 <article class="kpi-card"><h3>Additional Budget Needed</h3><p id="kpiAdditionalBudget">-</p></article>
-                <article class="kpi-card"><h3>Stat-Sig</h3><p id="kpiStatSig">-</p></article>
+                <article class="kpi-card"><h3>Additional Binds</h3><p id="kpiAdditionalBinds">-</p></article>
               </div>
 
               <div class="table-wrap">
@@ -485,19 +691,23 @@
                       <th>State</th>
                       <th>Testing Point</th>
                       <th>Recommended TP</th>
+                      <th>Bids</th>
                       <th>Win Rate</th>
                       <th>Avg Bid</th>
                       <th>CPC</th>
                       <th>Sold</th>
                       <th>WR uplift</th>
                       <th>CPC Uplift</th>
-                      <th>Chahnel WR uplift</th>
+                      <th>Channel WR Uplift</th>
                       <th>Channel CPC uplift</th>
                       <th>Additional Sold</th>
                       <th>Additional Budget</th>
                       <th>Current CPB</th>
                       <th>Expected CPB</th>
                       <th>CPB uplift</th>
+                      <th>Performance</th>
+                      <th>ROE</th>
+                      <th>COR</th>
                       <th>Stat-Sig</th>
                       <th>Channel quotes</th>
                       <th>Channel sold 2 quotes</th>
@@ -514,43 +724,56 @@
             </div>
 
             <div id="strategyAnalysisPanel" class="tab-panel">
-              <div class="filters-grid">
-                <div>
-                  <label for="strategyAnalysisStartDate">Start Date</label>
-                  <input id="strategyAnalysisStartDate" class="compact-date" type="date" />
+              <div class="analytics-toolbar">
+                <h2 class="analytics-page-title">Strategy Analysis</h2>
+                <div class="analytics-date-inline">
+                  <div id="strategyAnalysisDateControlMount" class="date-range-control-mount"></div>
                 </div>
+              </div>
+              <div class="filters-grid filters-compact filters-compact-2">
                 <div>
-                  <label for="strategyAnalysisEndDate">End Date</label>
-                  <input id="strategyAnalysisEndDate" class="compact-date" type="date" />
-                </div>
-                <div>
-                  <label for="strategyAnalysisPlanId">Plan ID</label>
-                  <input id="strategyAnalysisPlanId" type="text" placeholder="Uses selected Plan ID if empty" />
+                  <label for="strategyAnalysisViewMode">View</label>
+                  <select id="strategyAnalysisViewMode">
+                    <option value="rule" selected>By Rule</option>
+                    <option value="target_cor">By Target COR</option>
+                  </select>
                 </div>
               </div>
               <div class="action-row analytics-actions">
-                <button id="applyStrategyAnalysisFilters" class="compact-btn" type="button">Load Strategy Analysis</button>
+                <button id="applyStrategyAnalysisFilters" class="compact-btn" type="button">Apply Filters</button>
+              </div>
+              <div id="strategyAnalysisLoading" class="panel-loading" hidden>
+                <span class="spinner"></span>
+                <span>Loading data...</span>
               </div>
               <p id="strategyAnalysisStatus" class="muted"></p>
               <div class="table-wrap">
                 <table id="strategyAnalysisTable">
                   <thead>
                     <tr>
-                      <th>Rule Name</th>
+                      <th id="strategyAnalysisPrimaryHeader">Rule Name</th>
                       <th>States</th>
                       <th>Segments</th>
+                      <th>Target COR</th>
                       <th>Bids</th>
                       <th>Sold</th>
+                      <th>Total Spend</th>
+                      <th>CPC</th>
                       <th>WR</th>
                       <th>Quotes</th>
                       <th>Binds</th>
+                      <th>Current CPB</th>
+                      <th>Expected CPB</th>
                       <th>Q2B</th>
                       <th>Performance</th>
                       <th>ROE</th>
                       <th>COR</th>
                       <th>Additional Clicks</th>
                       <th>Additional Binds</th>
+                      <th>WR Uplift</th>
+                      <th>CPC Uplift</th>
                       <th>CPB Uplift</th>
+                      <th>Expected Total Cost</th>
                       <th>Additional Budget</th>
                     </tr>
                   </thead>
@@ -558,105 +781,214 @@
                 </table>
               </div>
             </div>
+
+            <div id="plansComparisonPanel" class="tab-panel">
+              <div class="analytics-toolbar">
+                <h2 class="analytics-page-title">Plans Comparison</h2>
+                <div class="analytics-date-inline">
+                  <div id="plansComparisonDateControlMount" class="date-range-control-mount"></div>
+                </div>
+              </div>
+              <div class="filters-grid filters-compact filters-compact-2">
+                <div>
+                  <label for="plansComparisonMode">Compare By</label>
+                  <select id="plansComparisonMode">
+                    <option value="plans" selected>Plans</option>
+                    <option value="global_filters">Global Filters</option>
+                  </select>
+                </div>
+                <div id="plansComparisonPlanWrap" hidden>
+                  <label for="plansComparisonPlanId">Plan</label>
+                  <select id="plansComparisonPlanId"></select>
+                </div>
+              </div>
+              <div class="action-row analytics-actions">
+                <button id="applyPlansComparisonFilters" class="compact-btn" type="button">Apply Filters</button>
+              </div>
+              <div id="plansComparisonLoading" class="panel-loading" hidden>
+                <span class="spinner"></span>
+                <span>Loading data...</span>
+              </div>
+              <p id="plansComparisonStatus" class="muted"></p>
+              <div class="table-wrap">
+                <table id="plansComparisonTable">
+                  <thead>
+                    <tr>
+                      <th id="plansComparisonPrimaryHeader">Plan</th>
+                      <th>States</th>
+                      <th>Segments</th>
+                      <th>Target COR</th>
+                      <th>Bids</th>
+                      <th>Sold</th>
+                      <th>Total Spend</th>
+                      <th>CPC</th>
+                      <th>WR</th>
+                      <th>Quotes</th>
+                      <th>Binds</th>
+                      <th>Current CPB</th>
+                      <th>Expected CPB</th>
+                      <th>Q2B</th>
+                      <th>Performance</th>
+                      <th>ROE</th>
+                      <th>COR</th>
+                      <th>Additional Clicks</th>
+                      <th>Additional Binds</th>
+                      <th>WR Uplift</th>
+                      <th>CPC Uplift</th>
+                      <th>CPB Uplift</th>
+                      <th>Expected Total Cost</th>
+                      <th>Additional Budget</th>
+                    </tr>
+                  </thead>
+                  <tbody id="plansComparisonTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div id="stateAnalysisPanel" class="tab-panel">
+              <div class="analytics-toolbar">
+                <h2 class="analytics-page-title">State Analysis</h2>
+                <div class="analytics-date-inline">
+                  <div id="stateAnalysisDateControlMount" class="date-range-control-mount"></div>
+                </div>
+              </div>
+              <div class="action-row analytics-actions">
+                <button id="applyStateAnalysisFilters" class="compact-btn" type="button">Apply Filters</button>
+              </div>
+              <div id="stateAnalysisLoading" class="panel-loading" hidden>
+                <span class="spinner"></span>
+                <span>Loading data...</span>
+              </div>
+              <p id="stateAnalysisStatus" class="muted"></p>
+
+              <div class="kpi-grid">
+                <article class="kpi-card"><h3>Total Clicks</h3><p id="stateAnalysisKpiBids">-</p></article>
+                <article class="kpi-card"><h3>Avg Win Rate</h3><p id="stateAnalysisKpiWr">-</p></article>
+                <article class="kpi-card"><h3>Cost</h3><p id="stateAnalysisKpiTotalSpend">-</p></article>
+                <article class="kpi-card"><h3>Avg Q2B</h3><p id="stateAnalysisKpiQ2b">-</p></article>
+                <article class="kpi-card"><h3>Binds</h3><p id="stateAnalysisKpiBinds">-</p></article>
+                <article class="kpi-card"><h3>CPB</h3><p id="stateAnalysisKpiCpb">-</p></article>
+                <article class="kpi-card"><h3>ROE</h3><p id="stateAnalysisKpiRoe">-</p></article>
+                <article class="kpi-card"><h3>Combined Ratio</h3><p id="stateAnalysisKpiCor">-</p></article>
+                <article class="kpi-card"><h3>LTV</h3><p id="stateAnalysisKpiLtv">-</p></article>
+                <article class="kpi-card"><h3>Additional Clicks</h3><p id="stateAnalysisKpiAdditionalClicks">-</p></article>
+                <article class="kpi-card"><h3>Additional Binds</h3><p id="stateAnalysisKpiAdditionalBinds">-</p></article>
+                <article class="kpi-card"><h3>Required Budget</h3><p id="stateAnalysisKpiAdditionalBudget">-</p></article>
+              </div>
+
+              <section class="state-map-card">
+                <h3>USA Map by State Strategy</h3>
+                <div class="state-map-wrap">
+                  <svg id="stateAnalysisMapSvg" viewBox="0 0 960 600" role="img" aria-label="USA strategy map"></svg>
+                  <div id="stateAnalysisMapTooltip" class="state-map-tooltip" hidden></div>
+                </div>
+              </section>
+
+              <section id="stateAnalysisRulesContainer" class="state-rules-list"></section>
+            </div>
+
+            <div id="statePlanAnalysisPanel" class="tab-panel">
+              <div class="analytics-toolbar">
+                <h2 class="analytics-page-title">State Plan Analysis</h2>
+                <div class="analytics-date-inline">
+                  <div id="statePlanAnalysisDateControlMount" class="date-range-control-mount"></div>
+                </div>
+              </div>
+              <div class="action-row analytics-actions">
+                <button id="applyStatePlanAnalysisFilters" class="compact-btn" type="button">Apply Filters</button>
+              </div>
+              <div id="statePlanAnalysisLoading" class="panel-loading" hidden>
+                <span class="spinner"></span>
+                <span>Loading data...</span>
+              </div>
+              <p id="statePlanAnalysisStatus" class="muted"></p>
+
+              <div class="kpi-grid">
+                <article class="kpi-card"><h3>Total Clicks</h3><p id="statePlanAnalysisKpiBids">-</p></article>
+                <article class="kpi-card"><h3>Avg Win Rate</h3><p id="statePlanAnalysisKpiWr">-</p></article>
+                <article class="kpi-card"><h3>Cost</h3><p id="statePlanAnalysisKpiTotalSpend">-</p></article>
+                <article class="kpi-card"><h3>Avg Q2B</h3><p id="statePlanAnalysisKpiQ2b">-</p></article>
+                <article class="kpi-card"><h3>Binds</h3><p id="statePlanAnalysisKpiBinds">-</p></article>
+                <article class="kpi-card"><h3>CPB</h3><p id="statePlanAnalysisKpiCpb">-</p></article>
+                <article class="kpi-card"><h3>ROE</h3><p id="statePlanAnalysisKpiRoe">-</p></article>
+                <article class="kpi-card"><h3>Combined Ratio</h3><p id="statePlanAnalysisKpiCor">-</p></article>
+                <article class="kpi-card"><h3>LTV</h3><p id="statePlanAnalysisKpiLtv">-</p></article>
+                <article class="kpi-card"><h3>Additional Clicks</h3><p id="statePlanAnalysisKpiAdditionalClicks">-</p></article>
+                <article class="kpi-card"><h3>Additional Binds</h3><p id="statePlanAnalysisKpiAdditionalBinds">-</p></article>
+                <article class="kpi-card"><h3>Required Budget</h3><p id="statePlanAnalysisKpiAdditionalBudget">-</p></article>
+              </div>
+
+              <section class="state-map-card">
+                <h3>USA Map by State Strategy</h3>
+                <div class="state-map-wrap">
+                  <svg id="statePlanAnalysisMapSvg" viewBox="0 0 960 600" role="img" aria-label="USA strategy map"></svg>
+                  <div id="statePlanAnalysisMapTooltip" class="state-map-tooltip" hidden></div>
+                </div>
+              </section>
+
+              <section class="state-rule-card">
+                <h3 id="statePlanAnalysisDetailTitle">State Details</h3>
+                <p id="statePlanAnalysisDetailMeta" class="muted">Click a state on the map to load details.</p>
+                <div class="kpi-grid">
+                  <article class="kpi-card"><h3>Total Clicks</h3><p id="statePlanStateKpiBids">-</p></article>
+                  <article class="kpi-card"><h3>Avg Win Rate</h3><p id="statePlanStateKpiWr">-</p></article>
+                  <article class="kpi-card"><h3>Cost</h3><p id="statePlanStateKpiTotalSpend">-</p></article>
+                  <article class="kpi-card"><h3>Avg Q2B</h3><p id="statePlanStateKpiQ2b">-</p></article>
+                  <article class="kpi-card"><h3>Binds</h3><p id="statePlanStateKpiBinds">-</p></article>
+                  <article class="kpi-card"><h3>CPB</h3><p id="statePlanStateKpiCpb">-</p></article>
+                  <article class="kpi-card"><h3>ROE</h3><p id="statePlanStateKpiRoe">-</p></article>
+                  <article class="kpi-card"><h3>Combined Ratio</h3><p id="statePlanStateKpiCor">-</p></article>
+                  <article class="kpi-card"><h3>LTV</h3><p id="statePlanStateKpiLtv">-</p></article>
+                  <article class="kpi-card"><h3>Additional Clicks</h3><p id="statePlanStateKpiAdditionalClicks">-</p></article>
+                  <article class="kpi-card"><h3>Additional Binds</h3><p id="statePlanStateKpiAdditionalBinds">-</p></article>
+                  <article class="kpi-card"><h3>Required Budget</h3><p id="statePlanStateKpiAdditionalBudget">-</p></article>
+                </div>
+                <div class="table-wrap">
+                  <table id="statePlanStateSegmentsTable">
+                    <thead>
+                      <tr>
+                        <th>Segment</th>
+                        <th>Bids</th>
+                        <th>Sold</th>
+                        <th>WR</th>
+                        <th>Total Spend</th>
+                        <th>Quotes</th>
+                        <th>Sold to Quotes</th>
+                        <th>Binds</th>
+                        <th>Q2B</th>
+                        <th>COR</th>
+                        <th>ROE</th>
+                        <th>CPB</th>
+                        <th>Performance</th>
+                      </tr>
+                    </thead>
+                    <tbody id="statePlanStateSegmentsBody"></tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
           </section>
         </div>
 
         <div class="section-content" data-section-panel="settings">
-          <div id="settingsConfigPanel" class="tab-panel active">
+          <div id="settingsGlobalFiltersPanel" class="tab-panel active">
             <section class="card">
-              <h2>Session</h2>
-              <p id="meStatus" class="muted"></p>
-              <button id="logoutBtn" type="button">Logout</button>
-            </section>
-
-            <section class="card">
-              <h2>Configuration</h2>
-
-              <h3>Date Range Defaults</h3>
-              <div class="filters-grid">
-                <div>
-                  <label for="perfFromDays">Performance: From (days before today)</label>
-                  <input id="perfFromDays" type="number" min="1" step="1" value="30" />
-                </div>
-                <div>
-                  <label for="perfToDays">Performance: To (days before today)</label>
-                  <input id="perfToDays" type="number" min="0" step="1" value="7" />
-                </div>
-              </div>
-              <p id="perfDateRangePreview" class="muted"></p>
-
-              <div class="filters-grid">
-                <div>
-                  <label for="priceFromDays">Price Exploration: From (days before today)</label>
-                  <input id="priceFromDays" type="number" min="1" step="1" value="30" />
-                </div>
-                <div>
-                  <label for="priceToDays">Price Exploration: To (days before today)</label>
-                  <input id="priceToDays" type="number" min="0" step="1" value="7" />
-                </div>
-              </div>
-              <p id="priceDateRangePreview" class="muted"></p>
-
-              <div class="filters-grid">
-                <div>
-                  <label for="targetsFromDays">Targets: From (days before today)</label>
-                  <input id="targetsFromDays" type="number" min="1" step="1" value="30" />
-                </div>
-                <div>
-                  <label for="targetsToDays">Targets: To (days before today)</label>
-                  <input id="targetsToDays" type="number" min="0" step="1" value="7" />
-                </div>
-              </div>
-              <p id="targetsDateRangePreview" class="muted"></p>
-
-              <h3>Cost (QBC)</h3>
-              <div class="filters-grid">
-                <div>
-                  <label for="qbcClicks">QBC for Clicks</label>
-                  <input id="qbcClicks" type="number" min="0" step="0.01" value="1" />
-                </div>
-                <div>
-                  <label for="qbcLeadsCalls">QBC for Leads and Calls</label>
-                  <input id="qbcLeadsCalls" type="number" min="0" step="0.01" value="1" />
-                </div>
-              </div>
-              <p class="muted">QBC is applied to ROE and Combine Ratio in the analytics display.</p>
-              <button id="saveConfiguration" type="button">Save Configuration</button>
-              <p id="configurationStatus" class="muted"></p>
-            </section>
-
-            <section class="card">
-              <h2>Targets</h2>
-              <p class="muted">Upload a default target file to auto-load when no file is uploaded in Plan &gt; Targets.</p>
-              <div class="action-row targets-settings-actions">
-                <button id="setDefaultTargetsFile" type="button">Set Default Target File</button>
-                <button id="clearDefaultTargetsFile" type="button">Clear Default File</button>
-                <input id="defaultTargetsFileInput" type="file" accept=".xlsx,.xls,.csv" hidden />
-              </div>
-              <p id="defaultTargetsFileStatus" class="muted"></p>
-            </section>
-
-            <section class="card">
-              <h2>Change Log</h2>
-              <div class="action-row">
-                <button id="refreshChangeLog" type="button">Refresh Change Log</button>
-              </div>
-              <p id="changeLogStatus" class="muted"></p>
+              <h2>Default Targets</h2>
               <div class="table-wrap">
-                <table id="changeLogTable">
+                <table id="settingsGlobalFiltersTable">
                   <thead>
                     <tr>
-                      <th>Timestamp</th>
-                      <th>User</th>
-                      <th>Object</th>
-                      <th>Action</th>
-                      <th>Before</th>
-                      <th>After</th>
+                      <th>Name</th>
+                      <th>Key</th>
+                      <th>Default Target File</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
-                  <tbody id="changeLogTableBody"></tbody>
+                  <tbody id="settingsGlobalFiltersBody"></tbody>
                 </table>
               </div>
+              <p id="settingsGlobalFiltersStatus" class="muted"></p>
+              <input id="defaultTargetsFileInput" type="file" accept=".xlsx,.xls,.csv" hidden />
             </section>
           </div>
 
@@ -693,8 +1025,21 @@
         </div>
       </section>
     </main>
-
+    <div id="planDeleteModal" class="modal-backdrop" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="planDeleteModalTitle">
+        <h3 id="planDeleteModalTitle">Delete Plan</h3>
+        <p id="planDeleteModalMessage" class="muted"></p>
+        <p class="muted">This will delete all related strategy rules, settings, decisions, runs, and results for this plan.</p>
+        <div class="modal-actions">
+          <button id="planDeleteCancelBtn" type="button">Cancel</button>
+          <button id="planDeleteConfirmBtn" type="button">Delete Plan</button>
+        </div>
+      </div>
+    </div>
     <script src="/vendor/xlsx.full.min.js"></script>
-    <script src="/main.js?v=20260302-1" type="module"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="/main.js?v=20260306-04" type="module"></script>
   </body>
 </html>

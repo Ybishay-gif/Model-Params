@@ -1,10 +1,21 @@
 import { randomUUID } from "node:crypto";
 import { query, table } from "../db/bigquery.js";
+import { config } from "../config.js";
+import { splitCombinedFilter } from "./shared/activityScope.js";
+import { buildCombinedRatioSql, buildRoeSql } from "./shared/kpiSql.js";
 
-const RAW_CROSS_TACTIC_TABLE = "`crblx-beacon-prod.Custom_Reports.Cross Tactic Analysis Full Data `";
+const RAW_CROSS_TACTIC_TABLE = config.rawCrossTacticTable;
+const TARGETS_PERF_DAILY_TABLE = table("targets_perf_daily");
 let targetsTableReady: Promise<void> | null = null;
+let targetsPerfDailyReady: Promise<boolean> | null = null;
+let targetsPerfDailyCheckedAt = 0;
+let targetsPlanIdColumnReady: Promise<boolean> | null = null;
+let targetsPlanIdCheckedAt = 0;
+const TARGETS_PERF_DAILY_CHECK_TTL_MS = 5 * 60 * 1000;
+const TARGETS_PLAN_ID_CHECK_TTL_MS = 5 * 60 * 1000;
 
 export type TargetsFilters = {
+  planId?: string;
   startDate?: string;
   endDate?: string;
   activityLeadType?: string;
@@ -61,30 +72,6 @@ export type TargetMetricRow = {
   avg_lifetime_cost: number | null;
 };
 
-type CombinedFilterParts = {
-  stateSegmentActivityType: string;
-  stateSegmentLeadType: string;
-};
-
-function splitCombinedFilter(value?: string): CombinedFilterParts {
-  switch ((value || "").toLowerCase()) {
-    case "clicks_auto":
-      return { stateSegmentActivityType: "Click", stateSegmentLeadType: "CAR_INSURANCE_LEAD" };
-    case "clicks_home":
-      return { stateSegmentActivityType: "Click", stateSegmentLeadType: "HOME_INSURANCE_LEAD" };
-    case "leads_auto":
-      return { stateSegmentActivityType: "Lead", stateSegmentLeadType: "CAR_INSURANCE_LEAD" };
-    case "leads_home":
-      return { stateSegmentActivityType: "Lead", stateSegmentLeadType: "HOME_INSURANCE_LEAD" };
-    case "calls_auto":
-      return { stateSegmentActivityType: "Call", stateSegmentLeadType: "CAR_INSURANCE_LEAD" };
-    case "calls_home":
-      return { stateSegmentActivityType: "Call", stateSegmentLeadType: "HOME_INSURANCE_LEAD" };
-    default:
-      return { stateSegmentActivityType: "", stateSegmentLeadType: "" };
-  }
-}
-
 function normalizeFilters(filters: TargetsFilters) {
   const combined = splitCombinedFilter(filters.activityLeadType);
   return {
@@ -94,6 +81,43 @@ function normalizeFilters(filters: TargetsFilters) {
     stateSegmentLeadType: combined.stateSegmentLeadType,
     qbc: Number.isFinite(Number(filters.qbc)) ? Number(filters.qbc) : 0
   };
+}
+
+async function hasTargetsPerfDailyTable(): Promise<boolean> {
+  const now = Date.now();
+  if (!targetsPerfDailyReady || now - targetsPerfDailyCheckedAt > TARGETS_PERF_DAILY_CHECK_TTL_MS) {
+    targetsPerfDailyCheckedAt = now;
+    targetsPerfDailyReady = query<{ present: number }>(
+      `
+        SELECT 1 AS present
+        FROM \`${config.projectId}.${config.dataset}.INFORMATION_SCHEMA.TABLES\`
+        WHERE table_name = 'targets_perf_daily'
+        LIMIT 1
+      `
+    )
+      .then((rows) => rows.length > 0)
+      .catch(() => false);
+  }
+  return targetsPerfDailyReady;
+}
+
+async function hasTargetsPlanIdColumn(): Promise<boolean> {
+  const now = Date.now();
+  if (!targetsPlanIdColumnReady || now - targetsPlanIdCheckedAt > TARGETS_PLAN_ID_CHECK_TTL_MS) {
+    targetsPlanIdCheckedAt = now;
+    targetsPlanIdColumnReady = query<{ present: number }>(
+      `
+        SELECT 1 AS present
+        FROM \`${config.projectId}.${config.dataset}.INFORMATION_SCHEMA.COLUMNS\`
+        WHERE table_name = 'targets'
+          AND column_name = 'plan_id'
+        LIMIT 1
+      `
+    )
+      .then((rows) => rows.length > 0)
+      .catch(() => false);
+  }
+  return targetsPlanIdColumnReady;
 }
 
 function normalizeState(value: string): string {
@@ -116,7 +140,7 @@ function normalizeAccountId(value?: string): string {
   return raw.replace(/\.0+$/, "");
 }
 
-function getPerfScopedCte() {
+function getPerfScopedCteFromRaw() {
   return `
       WITH perf_base AS (
         SELECT
@@ -177,63 +201,124 @@ function getPerfScopedCte() {
               NULLIF(SUM(COALESCE(total_binds, 0)), 0)
             )
           ) AS performance,
+          ${buildRoeSql({
+            zeroConditions: [
+              "SUM(COALESCE(scored_policies, 0)) = 0",
+              "SAFE_DIVIDE(SUM(COALESCE(avg_equity, 0)), NULLIF(SUM(COALESCE(scored_policies, 0)), 0)) = 0"
+            ],
+            avgProfitExpr: "SAFE_DIVIDE(SUM(COALESCE(avg_profit, 0)), NULLIF(SUM(COALESCE(scored_policies, 0)), 0))",
+            cpbExpr: "SAFE_DIVIDE(SUM(COALESCE(price, 0)), NULLIF(SUM(COALESCE(total_binds, 0)), 0))",
+            avgEquityExpr: "SAFE_DIVIDE(SUM(COALESCE(avg_equity, 0)), NULLIF(SUM(COALESCE(scored_policies, 0)), 0))"
+          })} AS roe,
+          ${buildCombinedRatioSql({
+            zeroConditions: [
+              "SUM(COALESCE(scored_policies, 0)) = 0",
+              "SAFE_DIVIDE(SUM(COALESCE(lifetime_premium, 0)), NULLIF(SUM(COALESCE(scored_policies, 0)), 0)) = 0"
+            ],
+            cpbExpr: "SAFE_DIVIDE(SUM(COALESCE(price, 0)), NULLIF(SUM(COALESCE(total_binds, 0)), 0))",
+            avgLifetimeCostExpr: "SAFE_DIVIDE(SUM(COALESCE(lifetime_cost, 0)), NULLIF(SUM(COALESCE(scored_policies, 0)), 0))",
+            avgLifetimePremiumExpr:
+              "SAFE_DIVIDE(SUM(COALESCE(lifetime_premium, 0)), NULLIF(SUM(COALESCE(scored_policies, 0)), 0))"
+          })} AS combined_ratio,
+          SAFE_DIVIDE(
+            SUM(COALESCE(avg_profit, 0)),
+            NULLIF(SUM(COALESCE(scored_policies, 0)), 0)
+          ) AS avg_profit,
+          SAFE_DIVIDE(
+            SUM(COALESCE(avg_equity, 0)),
+            NULLIF(SUM(COALESCE(scored_policies, 0)), 0)
+          ) AS avg_equity,
+          SAFE_DIVIDE(
+            SUM(COALESCE(lifetime_premium, 0)),
+            NULLIF(SUM(COALESCE(scored_policies, 0)), 0)
+          ) AS avg_lifetime_premium,
+          SAFE_DIVIDE(
+            SUM(COALESCE(lifetime_cost, 0)),
+            NULLIF(SUM(COALESCE(scored_policies, 0)), 0)
+          ) AS avg_lifetime_cost
+        FROM perf_base
+        WHERE (@startDate = "" OR event_date >= DATE(@startDate))
+          AND (@endDate = "" OR event_date <= DATE(@endDate))
+          AND segment IN ('MCH', 'MCR', 'SCH', 'SCR')
+        GROUP BY state, segment, source_key
+      )
+  `;
+}
+
+function getPerfScopedCteFromDaily() {
+  return `
+      WITH perf_base AS (
+        SELECT
+          event_date,
+          state,
+          segment,
+          source_key AS account_name,
+          company_account_id,
+          binds AS total_binds,
+          sold AS transaction_sold,
+          CAST(NULL AS FLOAT64) AS transaction_sold_alt,
+          price_sum AS price,
+          target_cpb_sum AS bq_target_cpb,
+          scored_policies,
+          lifetime_premium_sum AS lifetime_premium,
+          lifetime_cost_sum AS lifetime_cost,
+          avg_profit_sum AS avg_profit,
+          avg_equity_sum AS avg_equity
+        FROM ${TARGETS_PERF_DAILY_TABLE}
+        WHERE (@stateSegmentActivityType = "" OR LOWER(activity_type) = LOWER(@stateSegmentActivityType))
+          AND (@stateSegmentLeadType = "" OR LOWER(lead_type) = LOWER(@stateSegmentLeadType))
+      ),
+      perf AS (
+        SELECT
+          state,
+          segment,
+          REGEXP_REPLACE(LOWER(account_name), r'[^a-z0-9]+', '') AS source_key,
+          SUM(COALESCE(transaction_sold, transaction_sold_alt, 0)) AS sold,
+          SUM(COALESCE(total_binds, 0)) AS binds,
+          SUM(COALESCE(scored_policies, 0)) AS scored_policies,
+          SAFE_DIVIDE(
+            SUM(COALESCE(price, 0)),
+            NULLIF(SUM(COALESCE(total_binds, 0)), 0)
+          ) AS cpb,
           CASE
-            WHEN SUM(COALESCE(scored_policies, 0)) = 0
-              OR SAFE_DIVIDE(
-                SUM(COALESCE(avg_equity, 0)),
-                NULLIF(SUM(COALESCE(scored_policies, 0)), 0)
-              ) = 0 THEN 0
+            WHEN SUM(COALESCE(total_binds, 0)) = 0 THEN 0
             ELSE SAFE_DIVIDE(
-              (
-                SAFE_DIVIDE(
-                  SUM(COALESCE(avg_profit, 0)),
-                  NULLIF(SUM(COALESCE(scored_policies, 0)), 0)
-                )
-                - (
-                  0.8 * (
-                    SAFE_DIVIDE(
-                      SAFE_DIVIDE(
-                        SUM(COALESCE(price, 0)),
-                        NULLIF(SUM(COALESCE(total_binds, 0)), 0)
-                      ),
-                      0.81
-                    ) + @qbc
-                  )
-                )
-              ),
-              SAFE_DIVIDE(
-                SUM(COALESCE(avg_equity, 0)),
-                NULLIF(SUM(COALESCE(scored_policies, 0)), 0)
-              )
+              SUM(COALESCE(bq_target_cpb, 0)),
+              SUM(COALESCE(total_binds, 0))
             )
-          END AS roe,
-          CASE
-            WHEN SUM(COALESCE(scored_policies, 0)) = 0
-              OR SAFE_DIVIDE(
-                SUM(COALESCE(lifetime_premium, 0)),
-                NULLIF(SUM(COALESCE(scored_policies, 0)), 0)
-              ) = 0 THEN 0
-            ELSE SAFE_DIVIDE(
-              (
-                SAFE_DIVIDE(
-                  SAFE_DIVIDE(
-                    SUM(COALESCE(price, 0)),
-                    NULLIF(SUM(COALESCE(total_binds, 0)), 0)
-                  ),
-                  0.81
-                )
-                + @qbc
-                + SAFE_DIVIDE(
-                  SUM(COALESCE(lifetime_cost, 0)),
-                  NULLIF(SUM(COALESCE(scored_policies, 0)), 0)
-                )
-              ),
-              SAFE_DIVIDE(
-                SUM(COALESCE(lifetime_premium, 0)),
-                NULLIF(SUM(COALESCE(scored_policies, 0)), 0)
+          END AS target_cpb,
+          SAFE_DIVIDE(
+            CASE
+              WHEN SUM(COALESCE(total_binds, 0)) = 0 THEN 0
+              ELSE SAFE_DIVIDE(
+                SUM(COALESCE(bq_target_cpb, 0)),
+                SUM(COALESCE(total_binds, 0))
               )
+            END,
+            SAFE_DIVIDE(
+              SUM(COALESCE(price, 0)),
+              NULLIF(SUM(COALESCE(total_binds, 0)), 0)
             )
-          END AS combined_ratio,
+          ) AS performance,
+          ${buildRoeSql({
+            zeroConditions: [
+              "SUM(COALESCE(scored_policies, 0)) = 0",
+              "SAFE_DIVIDE(SUM(COALESCE(avg_equity, 0)), NULLIF(SUM(COALESCE(scored_policies, 0)), 0)) = 0"
+            ],
+            avgProfitExpr: "SAFE_DIVIDE(SUM(COALESCE(avg_profit, 0)), NULLIF(SUM(COALESCE(scored_policies, 0)), 0))",
+            cpbExpr: "SAFE_DIVIDE(SUM(COALESCE(price, 0)), NULLIF(SUM(COALESCE(total_binds, 0)), 0))",
+            avgEquityExpr: "SAFE_DIVIDE(SUM(COALESCE(avg_equity, 0)), NULLIF(SUM(COALESCE(scored_policies, 0)), 0))"
+          })} AS roe,
+          ${buildCombinedRatioSql({
+            zeroConditions: [
+              "SUM(COALESCE(scored_policies, 0)) = 0",
+              "SAFE_DIVIDE(SUM(COALESCE(lifetime_premium, 0)), NULLIF(SUM(COALESCE(scored_policies, 0)), 0)) = 0"
+            ],
+            cpbExpr: "SAFE_DIVIDE(SUM(COALESCE(price, 0)), NULLIF(SUM(COALESCE(total_binds, 0)), 0))",
+            avgLifetimeCostExpr: "SAFE_DIVIDE(SUM(COALESCE(lifetime_cost, 0)), NULLIF(SUM(COALESCE(scored_policies, 0)), 0))",
+            avgLifetimePremiumExpr:
+              "SAFE_DIVIDE(SUM(COALESCE(lifetime_premium, 0)), NULLIF(SUM(COALESCE(scored_policies, 0)), 0))"
+          })} AS combined_ratio,
           SAFE_DIVIDE(
             SUM(COALESCE(avg_profit, 0)),
             NULLIF(SUM(COALESCE(scored_policies, 0)), 0)
@@ -265,6 +350,7 @@ function ensureTargetsTableExists(): Promise<void> {
       `
         CREATE TABLE IF NOT EXISTS ${table("targets")} (
           target_id STRING NOT NULL,
+          plan_id STRING,
           state STRING NOT NULL,
           segment STRING NOT NULL,
           source STRING NOT NULL,
@@ -283,10 +369,15 @@ function ensureTargetsTableExists(): Promise<void> {
 export async function listTargets(filters: TargetsFilters): Promise<TargetRow[]> {
   await ensureTargetsTableExists();
   const normalized = normalizeFilters(filters);
+  const perfScopedCte = (await hasTargetsPerfDailyTable()) ? getPerfScopedCteFromDaily() : getPerfScopedCteFromRaw();
+  const hasPlanIdColumn = await hasTargetsPlanIdColumn();
+  const planId = String(filters.planId || "").trim();
+  const whereClause = hasPlanIdColumn && planId ? "WHERE t.plan_id = @planId" : "";
+  const queryParams = hasPlanIdColumn && planId ? { ...normalized, planId } : normalized;
 
   return query<TargetRow>(
     `
-      ${getPerfScopedCte()}
+      ${perfScopedCte}
       SELECT
         t.target_id,
         t.state,
@@ -313,9 +404,10 @@ export async function listTargets(filters: TargetsFilters): Promise<TargetRow[]>
         ON p.state = t.state
        AND p.segment = t.segment
        AND p.source_key = REGEXP_REPLACE(LOWER(t.source), r'[^a-z0-9]+', '')
+      ${whereClause}
       ORDER BY t.state, t.segment, t.source
     `,
-    normalized
+    queryParams
   );
 }
 
@@ -324,6 +416,7 @@ export async function getTargetsMetrics(
   filters: TargetsFilters
 ): Promise<TargetMetricRow[]> {
   const normalized = normalizeFilters(filters);
+  const perfScopedCte = (await hasTargetsPerfDailyTable()) ? getPerfScopedCteFromDaily() : getPerfScopedCteFromRaw();
   const rowsJson = JSON.stringify(
     rows.map((row) => ({
       state: normalizeState(row.state || ""),
@@ -335,7 +428,7 @@ export async function getTargetsMetrics(
 
   return query<TargetMetricRow>(
     `
-      ${getPerfScopedCte()},
+      ${perfScopedCte},
       perf_account AS (
         SELECT
           state,
@@ -369,63 +462,25 @@ export async function getTargetsMetrics(
               NULLIF(SUM(COALESCE(total_binds, 0)), 0)
             )
           ) AS performance,
-          CASE
-            WHEN SUM(COALESCE(scored_policies, 0)) = 0
-              OR SAFE_DIVIDE(
-                SUM(COALESCE(avg_equity, 0)),
-                NULLIF(SUM(COALESCE(scored_policies, 0)), 0)
-              ) = 0 THEN 0
-            ELSE SAFE_DIVIDE(
-              (
-                SAFE_DIVIDE(
-                  SUM(COALESCE(avg_profit, 0)),
-                  NULLIF(SUM(COALESCE(scored_policies, 0)), 0)
-                )
-                - (
-                  0.8 * (
-                    SAFE_DIVIDE(
-                      SAFE_DIVIDE(
-                        SUM(COALESCE(price, 0)),
-                        NULLIF(SUM(COALESCE(total_binds, 0)), 0)
-                      ),
-                      0.81
-                    ) + @qbc
-                  )
-                )
-              ),
-              SAFE_DIVIDE(
-                SUM(COALESCE(avg_equity, 0)),
-                NULLIF(SUM(COALESCE(scored_policies, 0)), 0)
-              )
-            )
-          END AS roe,
-          CASE
-            WHEN SUM(COALESCE(scored_policies, 0)) = 0
-              OR SAFE_DIVIDE(
-                SUM(COALESCE(lifetime_premium, 0)),
-                NULLIF(SUM(COALESCE(scored_policies, 0)), 0)
-              ) = 0 THEN 0
-            ELSE SAFE_DIVIDE(
-              (
-                SAFE_DIVIDE(
-                  SAFE_DIVIDE(
-                    SUM(COALESCE(price, 0)),
-                    NULLIF(SUM(COALESCE(total_binds, 0)), 0)
-                  ),
-                  0.81
-                )
-                + @qbc
-                + SAFE_DIVIDE(
-                  SUM(COALESCE(lifetime_cost, 0)),
-                  NULLIF(SUM(COALESCE(scored_policies, 0)), 0)
-                )
-              ),
-              SAFE_DIVIDE(
-                SUM(COALESCE(lifetime_premium, 0)),
-                NULLIF(SUM(COALESCE(scored_policies, 0)), 0)
-              )
-            )
-          END AS combined_ratio,
+          ${buildRoeSql({
+            zeroConditions: [
+              "SUM(COALESCE(scored_policies, 0)) = 0",
+              "SAFE_DIVIDE(SUM(COALESCE(avg_equity, 0)), NULLIF(SUM(COALESCE(scored_policies, 0)), 0)) = 0"
+            ],
+            avgProfitExpr: "SAFE_DIVIDE(SUM(COALESCE(avg_profit, 0)), NULLIF(SUM(COALESCE(scored_policies, 0)), 0))",
+            cpbExpr: "SAFE_DIVIDE(SUM(COALESCE(price, 0)), NULLIF(SUM(COALESCE(total_binds, 0)), 0))",
+            avgEquityExpr: "SAFE_DIVIDE(SUM(COALESCE(avg_equity, 0)), NULLIF(SUM(COALESCE(scored_policies, 0)), 0))"
+          })} AS roe,
+          ${buildCombinedRatioSql({
+            zeroConditions: [
+              "SUM(COALESCE(scored_policies, 0)) = 0",
+              "SAFE_DIVIDE(SUM(COALESCE(lifetime_premium, 0)), NULLIF(SUM(COALESCE(scored_policies, 0)), 0)) = 0"
+            ],
+            cpbExpr: "SAFE_DIVIDE(SUM(COALESCE(price, 0)), NULLIF(SUM(COALESCE(total_binds, 0)), 0))",
+            avgLifetimeCostExpr: "SAFE_DIVIDE(SUM(COALESCE(lifetime_cost, 0)), NULLIF(SUM(COALESCE(scored_policies, 0)), 0))",
+            avgLifetimePremiumExpr:
+              "SAFE_DIVIDE(SUM(COALESCE(lifetime_premium, 0)), NULLIF(SUM(COALESCE(scored_policies, 0)), 0))"
+          })} AS combined_ratio,
           SAFE_DIVIDE(
             SUM(COALESCE(avg_profit, 0)),
             NULLIF(SUM(COALESCE(scored_policies, 0)), 0)
@@ -492,9 +547,24 @@ export async function getTargetsMetrics(
   );
 }
 
-export async function createTarget(userId: string): Promise<{ targetId: string }> {
+export async function createTarget(userId: string, planId?: string): Promise<{ targetId: string }> {
   await ensureTargetsTableExists();
   const targetId = randomUUID();
+  const hasPlanIdColumn = await hasTargetsPlanIdColumn();
+  const normalizedPlanId = String(planId || "").trim();
+
+  if (hasPlanIdColumn) {
+    await query(
+      `
+        INSERT INTO ${table("targets")}
+        (target_id, plan_id, state, segment, source, target_value, created_by, created_at, updated_by, updated_at)
+        VALUES (@targetId, NULLIF(@planId, ''), 'NA', 'MCH', 'New Source', 0, @userId, CURRENT_TIMESTAMP(), @userId, CURRENT_TIMESTAMP())
+      `,
+      { targetId, userId, planId: normalizedPlanId }
+    );
+    return { targetId };
+  }
+
   await query(
     `
       INSERT INTO ${table("targets")}
@@ -516,11 +586,14 @@ type UpdateTargetInput = {
 export async function updateTarget(
   targetId: string,
   input: UpdateTargetInput,
-  userId: string
+  userId: string,
+  planId?: string
 ): Promise<void> {
   await ensureTargetsTableExists();
   const updates: string[] = [];
   const params: Record<string, unknown> = { targetId, userId };
+  const hasPlanIdColumn = await hasTargetsPlanIdColumn();
+  const normalizedPlanId = String(planId || "").trim();
 
   if (typeof input.state === "string") {
     updates.push("state = @state");
@@ -551,7 +624,8 @@ export async function updateTarget(
       UPDATE ${table("targets")}
       SET ${updates.join(",\n          ")}
       WHERE target_id = @targetId
+      ${hasPlanIdColumn && normalizedPlanId ? "  AND plan_id = @planId" : ""}
     `,
-    params
+    hasPlanIdColumn && normalizedPlanId ? { ...params, planId: normalizedPlanId } : params
   );
 }

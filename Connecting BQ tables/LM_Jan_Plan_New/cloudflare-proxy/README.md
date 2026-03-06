@@ -19,11 +19,11 @@ Use a **named tunnel + stable hostname** instead.
    ```
 2. Create named tunnel and credentials:
    ```bash
-   ./scripts/create_named_tunnel.sh beaconlm-planning-api
+   ./scripts/create_named_tunnel.sh beaconlab-planning-api
    ```
 3. Create DNS route to your hostname:
    ```bash
-   cloudflared tunnel route dns beaconlm-planning-api planning-api.<your-domain>
+   cloudflared tunnel route dns beaconlab-planning-api planning-api.<your-domain>
    ```
 4. Copy `cloudflared/config.example.yml` to `cloudflared/config.yml` and fill:
    - `TUNNEL_ID`
@@ -49,7 +49,7 @@ Optional fallback origin:
 ## Health check
 
 ```bash
-./scripts/check_proxy_health.sh planning-api.<your-domain> beaconlm.lmjanstrategymodel.workers.dev
+./scripts/check_proxy_health.sh planning-api.<your-domain> beaconlab.kissterralab.workers.dev
 ```
 
 ## Notes

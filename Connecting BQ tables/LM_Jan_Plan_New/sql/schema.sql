@@ -86,6 +86,7 @@ CREATE TABLE IF NOT EXISTS `planning_app.plan_results` (
 
 CREATE TABLE IF NOT EXISTS `planning_app.targets` (
   target_id STRING NOT NULL,
+  plan_id STRING,
   state STRING NOT NULL,
   segment STRING NOT NULL,
   source STRING NOT NULL,

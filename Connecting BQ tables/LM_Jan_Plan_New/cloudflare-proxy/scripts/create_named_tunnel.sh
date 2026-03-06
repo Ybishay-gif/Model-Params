@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TUNNEL_NAME="${1:-beaconlm-planning-api}"
+TUNNEL_NAME="${1:-beaconlab-planning-api}"
 
 if ! command -v cloudflared >/dev/null 2>&1; then
   echo "cloudflared is not installed."

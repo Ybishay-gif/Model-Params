@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.beaconlm.tunnel</string>
+  <string>com.beaconlab.tunnel</string>
 
   <key>ProgramArguments</key>
   <array>
@@ -20,8 +20,8 @@
   <true/>
 
   <key>StandardOutPath</key>
-  <string>/tmp/cloudflared-beaconlm.out.log</string>
+  <string>/tmp/cloudflared-beaconlab.out.log</string>
   <key>StandardErrorPath</key>
-  <string>/tmp/cloudflared-beaconlm.err.log</string>
+  <string>/tmp/cloudflared-beaconlab.err.log</string>
 </dict>
 </plist>

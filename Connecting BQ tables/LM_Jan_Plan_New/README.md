@@ -28,7 +28,11 @@ Set `.env`:
 PORT=8080
 GOOGLE_CLOUD_PROJECT=your-project-id
 BQ_DATASET=planning_app
-ADMIN_ACCESS_CODE=Kis123kis1!
+# Optional: analytics reads can use a different dataset (defaults to BQ_DATASET)
+# BQ_ANALYTICS_DATASET=planning_app
+ADMIN_ACCESS_CODE=replace-with-strong-random-admin-code
+# Optional raw source table override (with backticks)
+# BQ_RAW_CROSS_TACTIC_TABLE=`crblx-beacon-prod.Custom_Reports.Cross Tactic Analysis Full Data `
 ```
 
 ## 3) Create BigQuery tables
@@ -41,6 +45,27 @@ Then insert at least one allowed user:
 ```sql
 INSERT INTO `planning_app.users` (user_id, email, role, is_active, created_at, updated_at)
 VALUES ('u-admin-1', 'you@company.com', 'admin', TRUE, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP());
+```
+
+## Environment Isolation (Prod vs Test)
+
+Use separate writable datasets per environment:
+- Production app objects: `BQ_DATASET=planning_app`
+- Test app objects: `BQ_DATASET=planning_app_dev`
+
+If you want analytics reads shared from production while keeping test objects isolated, set:
+
+```env
+BQ_DATASET=planning_app_dev
+BQ_ANALYTICS_DATASET=planning_app
+```
+
+Clone mutable app objects from prod to test:
+
+```bash
+BQ_SYNC_SOURCE_DATASET=planning_app \
+BQ_SYNC_TARGET_DATASET=planning_app_dev \
+npx tsx scripts/bq/sync_mutable_tables.ts
 ```
 
 ## 4) Start API
@@ -62,6 +87,14 @@ Use the stable setup in:
 
 That flow uses a named tunnel + fixed hostname + worker origin variables.
 
+## Testing Site Policy
+
+- All testing, QA, and automation must run on the testing site:
+  - `https://planning-app-api-dev-758008223769.us-central1.run.app`
+- Do not run tests on production endpoints:
+  - `https://beaconlab.kissterralab.workers.dev/`
+  - `https://planning-app-api-758008223769.us-central1.run.app`
+
 ## 5) Web app quick start
 
 1. Open `http://localhost:8080`.
@@ -81,7 +114,7 @@ Login as admin and extract `token`:
 ```bash
 curl -X POST http://localhost:8080/api/auth/admin-login \
   -H "Content-Type: application/json" \
-  -d '{"code":"Kis123kis1!"}'
+  -d '{"code":"<your-admin-access-code>"}'
 ```
 
 Use token in `x-session-token`:
@@ -115,3 +148,20 @@ Google OAuth can be added next as an additional login method.
   - `planning_app.v_cross_tactic_raw`
   - `planning_app.v_performance_state_channel`
   - `planning_app.v_bid_exploration_curve`
+
+## Analytics Consistency Rule (ROE/COR)
+
+For all screens and endpoints that show ROE or COR:
+- Always apply the active global filter scope (`activityLeadType`).
+- Always use the matching QBC from configuration:
+  - `clicks_*` -> `qbcClicks`
+  - `leads_*` and `calls_*` -> `qbcLeadsCalls`
+- Never compute ROE/COR with a hardcoded or missing QBC.
+
+This rule applies to both SQL-backed backend calculations and any frontend-derived aggregations.
+
+## Analytics Consistency Rule (Global Filters)
+
+For all analytics calculations and KPIs (not only ROE/COR):
+- Always apply active global filters (`activityLeadType`) consistently across screens.
+- When comparing metrics between screens, ensure row scope is aligned (for example, segment-scoped vs non-segment-scoped channels).

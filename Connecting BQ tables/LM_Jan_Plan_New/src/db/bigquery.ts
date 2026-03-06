@@ -38,3 +38,11 @@ export async function query<T>(sql: string, params: Record<string, unknown> = {}
 export function table(tableName: string): string {
   return `\`${config.projectId}.${config.dataset}.${tableName}\``;
 }
+
+export function analyticsTable(tableName: string): string {
+  return `\`${config.projectId}.${config.analyticsDataset}.${tableName}\``;
+}
+
+export function analyticsRoutine(routineName: string): string {
+  return `\`${config.projectId}.${config.analyticsDataset}.${routineName}\``;
+}

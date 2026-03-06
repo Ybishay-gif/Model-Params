@@ -9,6 +9,16 @@ type CreatePlanInput = {
   createdBy: string;
 };
 
+type ClonePlanInput = {
+  planName?: string;
+  description?: string;
+};
+
+type UpdatePlanInput = {
+  planName?: string;
+  description?: string;
+};
+
 type PlanRow = {
   plan_id: string;
   plan_name: string;
@@ -17,6 +27,8 @@ type PlanRow = {
   created_by: string;
   created_at: { value: string } | string;
   updated_at: { value: string } | string | null;
+  plan_context_json?: string | null;
+  plan_strategy_json?: string | null;
 };
 
 type PlanParameterRow = {
@@ -27,12 +39,44 @@ type PlanParameterRow = {
   updated_at: { value: string } | string | null;
 };
 
+const WRITE_BATCH_SIZE = 10;
+
+async function runBatched<T>(rows: T[], worker: (row: T) => Promise<void>, batchSize = WRITE_BATCH_SIZE): Promise<void> {
+  for (let offset = 0; offset < rows.length; offset += batchSize) {
+    const batch = rows.slice(offset, offset + batchSize);
+    await Promise.all(batch.map((row) => worker(row)));
+  }
+}
+
 export async function listPlans(): Promise<PlanRow[]> {
   return query<PlanRow>(
     `
-      SELECT plan_id, plan_name, description, status, created_by, created_at, updated_at
-      FROM ${table("plans")}
-      ORDER BY created_at DESC
+      SELECT
+        p.plan_id,
+        p.plan_name,
+        p.description,
+        p.status,
+        p.created_by,
+        p.created_at,
+        p.updated_at,
+        pc.plan_context_json,
+        ps.plan_strategy_json
+      FROM ${table("plans")} p
+      LEFT JOIN (
+        SELECT plan_id, ANY_VALUE(param_value) AS plan_context_json
+        FROM ${table("plan_parameters")}
+        WHERE param_key = 'plan_context_config'
+        GROUP BY plan_id
+      ) pc
+        ON pc.plan_id = p.plan_id
+      LEFT JOIN (
+        SELECT plan_id, ANY_VALUE(param_value) AS plan_strategy_json
+        FROM ${table("plan_parameters")}
+        WHERE param_key = 'plan_strategy_config'
+        GROUP BY plan_id
+      ) ps
+        ON ps.plan_id = p.plan_id
+      ORDER BY p.created_at DESC
     `
   );
 }
@@ -52,6 +96,74 @@ export async function createPlan(input: CreatePlanInput): Promise<{ planId: stri
       description: input.description ?? null,
       createdBy: input.createdBy
     }
+  );
+
+  return { planId };
+}
+
+export async function clonePlan(
+  sourcePlanId: string,
+  userId: string,
+  input: ClonePlanInput = {}
+): Promise<{ planId: string }> {
+  const source = await getPlan(sourcePlanId);
+  if (!source) {
+    throw new Error("Plan not found");
+  }
+
+  const planId = randomUUID();
+  const planName = String(input.planName || "").trim() || `${source.plan_name} (Clone)`;
+  const description = input.description !== undefined ? input.description : source.description;
+
+  await query(
+    `
+      INSERT INTO ${table("plans")}
+      (plan_id, plan_name, description, status, created_by, created_at)
+      VALUES (@planId, @planName, @description, 'draft', @createdBy, CURRENT_TIMESTAMP())
+    `,
+    {
+      planId,
+      planName,
+      description: description ?? null,
+      createdBy: userId
+    }
+  );
+
+  await query(
+    `
+      INSERT INTO ${table("plan_parameters")}
+      (plan_id, param_key, param_value, value_type, updated_by, updated_at)
+      SELECT
+        @newPlanId,
+        param_key,
+        param_value,
+        value_type,
+        @updatedBy,
+        CURRENT_TIMESTAMP()
+      FROM ${table("plan_parameters")}
+      WHERE plan_id = @sourcePlanId
+    `,
+    { newPlanId: planId, sourcePlanId, updatedBy: userId }
+  );
+
+  await query(
+    `
+      INSERT INTO ${table("plan_decisions")}
+      (decision_id, plan_id, decision_type, state, channel, decision_value, reason, created_by, created_at)
+      SELECT
+        GENERATE_UUID(),
+        @newPlanId,
+        decision_type,
+        state,
+        channel,
+        decision_value,
+        reason,
+        @createdBy,
+        CURRENT_TIMESTAMP()
+      FROM ${table("plan_decisions")}
+      WHERE plan_id = @sourcePlanId
+    `,
+    { newPlanId: planId, sourcePlanId, createdBy: userId }
   );
 
   return { planId };
@@ -83,6 +195,41 @@ export async function listPlanParameters(planId: string): Promise<PlanParameterR
   );
 }
 
+export async function updatePlan(planId: string, input: UpdatePlanInput): Promise<void> {
+  const updates: string[] = [];
+  const params: Record<string, unknown> = { planId };
+
+  if (typeof input.planName === "string") {
+    updates.push("plan_name = @planName");
+    params.planName = input.planName.trim();
+  }
+  if (input.description !== undefined) {
+    updates.push("description = @description");
+    params.description = input.description?.trim() || null;
+  }
+  if (!updates.length) {
+    return;
+  }
+  updates.push("updated_at = CURRENT_TIMESTAMP()");
+
+  await query(
+    `
+      UPDATE ${table("plans")}
+      SET ${updates.join(",\n          ")}
+      WHERE plan_id = @planId
+    `,
+    params
+  );
+}
+
+export async function deletePlan(planId: string): Promise<void> {
+  await query(`DELETE FROM ${table("plan_results")} WHERE plan_id = @planId`, { planId });
+  await query(`DELETE FROM ${table("plan_runs")} WHERE plan_id = @planId`, { planId });
+  await query(`DELETE FROM ${table("plan_decisions")} WHERE plan_id = @planId`, { planId });
+  await query(`DELETE FROM ${table("plan_parameters")} WHERE plan_id = @planId`, { planId });
+  await query(`DELETE FROM ${table("plans")} WHERE plan_id = @planId`, { planId });
+}
+
 export async function upsertParameters(
   planId: string,
   userId: string,
@@ -92,7 +239,7 @@ export async function upsertParameters(
     return;
   }
 
-  for (const parameter of parameters) {
+  await runBatched(parameters, async (parameter) => {
     await query(
       `
         MERGE ${table("plan_parameters")} T
@@ -118,7 +265,7 @@ export async function upsertParameters(
         updatedBy: userId
       }
     );
-  }
+  });
 }
 
 export async function appendDecisions(
@@ -132,12 +279,12 @@ export async function appendDecisions(
     reason?: string;
   }>
 ): Promise<{ decisionIds: string[] }> {
-  const decisionIds: string[] = [];
+  const decisionsWithIds = decisions.map((decision) => ({
+    decisionId: randomUUID(),
+    decision
+  }));
 
-  for (const decision of decisions) {
-    const decisionId = randomUUID();
-    decisionIds.push(decisionId);
-
+  await runBatched(decisionsWithIds, async (entry) => {
     await query(
       `
         INSERT INTO ${table("plan_decisions")}
@@ -155,19 +302,19 @@ export async function appendDecisions(
         )
       `,
       {
-        decisionId,
+        decisionId: entry.decisionId,
         planId,
-        decisionType: decision.decisionType,
-        state: decision.state ?? "",
-        channel: decision.channel ?? "",
-        decisionValue: decision.decisionValue,
-        reason: decision.reason ?? "",
+        decisionType: entry.decision.decisionType,
+        state: entry.decision.state ?? "",
+        channel: entry.decision.channel ?? "",
+        decisionValue: entry.decision.decisionValue,
+        reason: entry.decision.reason ?? "",
         createdBy: userId
       }
     );
-  }
+  });
 
-  return { decisionIds };
+  return { decisionIds: decisionsWithIds.map((entry) => entry.decisionId) };
 }
 
 export async function createRun(planId: string, userId: string): Promise<{ runId: string }> {

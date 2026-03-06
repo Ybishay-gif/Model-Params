@@ -6,7 +6,7 @@ WORKER_HOST="${2:-}"
 
 if [[ -z "${PRIMARY_HOST}" || -z "${WORKER_HOST}" ]]; then
   echo "Usage: $0 <stable-origin-hostname> <worker-hostname>"
-  echo "Example: $0 planning-api.example.com beaconlm.example.workers.dev"
+  echo "Example: $0 planning-api.example.com beaconlab.example.workers.dev"
   exit 1
 fi
 

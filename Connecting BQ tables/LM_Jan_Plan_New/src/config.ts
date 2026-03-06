@@ -17,5 +17,8 @@ export const config = {
   port: Number(process.env.PORT ?? 8080),
   projectId: required("GOOGLE_CLOUD_PROJECT"),
   dataset: required("BQ_DATASET"),
-  adminAccessCode: process.env.ADMIN_ACCESS_CODE || "Kis123kis1!"
+  analyticsDataset: process.env.BQ_ANALYTICS_DATASET || required("BQ_DATASET"),
+  adminAccessCode: required("ADMIN_ACCESS_CODE"),
+  rawCrossTacticTable:
+    process.env.BQ_RAW_CROSS_TACTIC_TABLE || "`crblx-beacon-prod.Custom_Reports.Cross Tactic Analysis Full Data `"
 };
