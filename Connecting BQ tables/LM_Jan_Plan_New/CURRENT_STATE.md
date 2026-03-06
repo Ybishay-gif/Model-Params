@@ -97,6 +97,8 @@
 - Delivery policy in this repo:
   - Codex should deploy automatically after completing requested changes and passing checks.
   - Deploy confirmation should not be requested each turn unless user explicitly opts out.
+  - GitHub should also be updated automatically after deploy without waiting for a separate user prompt.
+  - If GitHub push/PR automation is blocked by missing auth or tooling, Codex should attempt to install/configure the tooling first and only then report the blocker.
 - Current public Worker endpoint in use:
   - `https://beaconlab.kissterralab.workers.dev/`
   - This is the default deployment/validation URL for future chats in this repo.

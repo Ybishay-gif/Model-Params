@@ -219,6 +219,11 @@ Default execution policy for Codex sessions in this repo:
 - After code changes are complete and `npm run check` passes, deploy automatically to Cloud Run (`planning-app-api`) so updates appear at:
   - `https://beaconlab.kissterralab.workers.dev/`
 - Do not pause to ask for deploy confirmation unless the user explicitly requests to skip deployment.
+- After deployment, sync the shipped source to GitHub automatically:
+  - commit/push the relevant changes or a clean deployed snapshot branch
+  - create or update a PR when GitHub authentication is available
+- Do not pause to ask for GitHub sync confirmation unless the user explicitly requests to skip it.
+- If GitHub auth/tooling is missing, attempt to install/configure it in-session and only report the blocker if automation still cannot complete.
 
 ## Troubleshooting
 1. `530` through Cloudflare:

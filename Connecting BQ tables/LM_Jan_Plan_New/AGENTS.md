@@ -39,6 +39,9 @@ Do not assume prior chat history exists. Use those files as the source of truth 
   - After implementing requested changes and passing checks, deploy automatically.
   - Do not ask for deploy confirmation each turn.
   - Exception: skip deploy only when the user explicitly says not to deploy.
+  - After deploy, update GitHub automatically as part of the same task.
+  - Do not ask for GitHub push/PR confirmation each turn.
+  - If GitHub auth or environment prevents push/PR creation, attempt the setup directly and only report the blocker if automation cannot complete.
 - Do not change deployment topology without updating:
   - `RUNBOOK.md` (process)
   - `CURRENT_STATE.md` (status and impact)
